@@ -58,7 +58,9 @@ export function LabDashboard({ roomId, debug }: LabDashboardProps) {
     () =>
       new GameClient({
         roomId,
-        serverUrl: process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8080",
+        serverUrl:
+          process.env.NEXT_PUBLIC_WS_URL ??
+          "wss://server-production-6a10.up.railway.app",
         initialSettings: defaultSettings(),
         observer: {
           onStatus: setStatus,
