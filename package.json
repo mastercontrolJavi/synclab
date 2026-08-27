@@ -1,0 +1,26 @@
+{
+  "name": "synclab",
+  "version": "1.0.0",
+  "private": true,
+  "description": "An interactive laboratory for multiplayer networking techniques.",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @synclab/shared build && concurrently -k -n server,web -c blue,green \"pnpm --filter @synclab/server dev\" \"pnpm --filter @synclab/web dev\"",
+    "build": "pnpm --filter @synclab/shared build && pnpm --filter @synclab/server build && pnpm --filter @synclab/web build",
+    "test": "pnpm --filter @synclab/shared build && vitest run",
+    "lint": "pnpm -r --if-present lint",
+    "typecheck": "pnpm --filter @synclab/shared build && pnpm --filter @synclab/server typecheck && pnpm --filter @synclab/web typecheck"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^20.19.43",
+    "concurrently": "^10.0.5",
+    "eslint": "^9.39.5",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.68.0",
+    "vitest": "^4.1.11"
+  }
+}
