@@ -13,6 +13,7 @@ export interface MovementInput {
 export interface PlayerSnapshot extends Vector2 {
   id: string;
   isIt: boolean;
+  isScripted: boolean;
   tagCount: number;
 }
 

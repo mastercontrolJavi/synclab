@@ -1,12 +1,12 @@
 "use client";
 
-import { Gauge, RotateCcw, SlidersHorizontal, Zap } from "lucide-react";
+import { Gauge, SlidersHorizontal, Zap } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
+import { getActivePreset, GUIDED_PRESETS } from "../presets";
 import type { LabSettings } from "../types";
 
 interface ControlPanelProps {
@@ -98,49 +98,25 @@ function ToggleRow({
   );
 }
 
-const PRESETS: Array<{
-  label: string;
-  description: string;
-  values: Pick<LabSettings, "rttMs" | "jitterMs" | "packetLossPercent">;
-}> = [
-  {
-    label: "Clean",
-    description: "0ms",
-    values: { rttMs: 0, jitterMs: 0, packetLossPercent: 0 },
-  },
-  {
-    label: "200ms",
-    description: "Latency",
-    values: { rttMs: 200, jitterMs: 10, packetLossPercent: 0 },
-  },
-  {
-    label: "Jitter",
-    description: "80ms",
-    values: { rttMs: 100, jitterMs: 80, packetLossPercent: 0 },
-  },
-  {
-    label: "Lossy",
-    description: "10%",
-    values: { rttMs: 120, jitterMs: 25, packetLossPercent: 10 },
-  },
-];
+const PRESET_BUTTONS = [
+  { label: "Naive", preset: "naive" },
+  { label: "Modern", preset: "modern" },
+  { label: "Reset", preset: "reset" },
+] as const;
 
 export function ControlPanel({ settings, onChange, onReset }: ControlPanelProps) {
+  const activePreset = getActivePreset(settings);
   const update = <Key extends keyof LabSettings>(key: Key, value: LabSettings[Key]) => {
     onChange({ ...settings, [key]: value });
   };
 
   return (
     <aside className="min-h-0 border-b border-border bg-background lg:overflow-y-auto">
-      <div className="flex h-11 items-center justify-between border-b border-border px-4">
+      <div className="flex h-11 items-center border-b border-border px-4">
         <div className="flex items-center gap-2">
           <SlidersHorizontal className="size-3.5 text-muted-foreground" aria-hidden="true" />
           <h2 className="text-xs font-medium">Lab controls</h2>
         </div>
-        <Button variant="ghost" size="xs" onClick={onReset}>
-          <RotateCcw data-icon="inline-start" />
-          Reset
-        </Button>
       </div>
 
       <div className="divide-y divide-border">
@@ -154,28 +130,25 @@ export function ControlPanel({ settings, onChange, onReset }: ControlPanelProps)
               Lab presets
             </h3>
           </div>
-          <div className="grid grid-cols-4 gap-1.5">
-            {PRESETS.map((preset) => {
-              const active =
-                preset.values.rttMs === settings.rttMs &&
-                preset.values.jitterMs === settings.jitterMs &&
-                preset.values.packetLossPercent === settings.packetLossPercent;
+          <div className="grid grid-cols-3 gap-1.5">
+            {PRESET_BUTTONS.map(({ label, preset }) => {
+              const active = activePreset === preset;
               return (
                 <button
                   type="button"
-                  key={preset.label}
-                  onClick={() => onChange({ ...settings, ...preset.values })}
+                  key={preset}
+                  onClick={() =>
+                    preset === "reset" ? onReset() : onChange(GUIDED_PRESETS[preset])
+                  }
+                  aria-pressed={active}
                   className={cn(
-                    "rounded-md border px-1.5 py-2 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    "rounded-md border px-2 py-2 text-center text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     active
                       ? "border-primary/40 bg-primary/10 text-foreground"
                       : "border-border bg-card text-muted-foreground hover:bg-muted/50 hover:text-foreground",
                   )}
                 >
-                  <span className="block text-[10px] font-medium">{preset.label}</span>
-                  <span className="mt-0.5 block font-mono text-[8px] opacity-65">
-                    {preset.description}
-                  </span>
+                  {label}
                 </button>
               );
             })}

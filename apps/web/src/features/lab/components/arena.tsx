@@ -12,6 +12,7 @@ interface ArenaProps {
   connectedPlayers: number;
   connectionState: ConnectionState;
   debug: boolean;
+  caption: string;
 }
 
 const MOVEMENT_KEYS = new Set([
@@ -30,6 +31,7 @@ export function Arena({
   connectedPlayers,
   connectionState,
   debug,
+  caption,
 }: ArenaProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const arenaRef = useRef<HTMLDivElement>(null);
@@ -122,7 +124,7 @@ export function Arena({
         {connectionState === "connected" && connectedPlayers < 2 ? (
           <div className="pointer-events-none absolute inset-x-0 top-5 flex justify-center">
             <div className="rounded-md border border-border bg-background/90 px-3 py-1.5 text-[11px] text-muted-foreground backdrop-blur-sm">
-              Waiting for a peer — open the room link in another tab
+              Solo mode · scripted peer active — share the room to replace it
             </div>
           </div>
         ) : null}
@@ -137,6 +139,12 @@ export function Arena({
           </div>
         ) : null}
       </div>
+      <p
+        className="h-8 shrink-0 truncate px-4 py-2 text-[10px] text-muted-foreground sm:text-[11px]"
+        title={caption || undefined}
+      >
+        {caption || "\u00a0"}
+      </p>
     </section>
   );
 }

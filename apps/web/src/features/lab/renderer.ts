@@ -93,7 +93,8 @@ function drawPlayer(
   context.textBaseline = "bottom";
   context.font = "600 10px Geist, ui-sans-serif, system-ui";
   context.fillStyle = "rgba(244, 244, 245, 0.82)";
-  context.fillText(player.isLocal ? "YOU" : "PEER", point.x, point.y - radius - 11);
+  const label = player.isLocal ? "YOU" : player.isScripted ? "SCRIPTED" : "PEER";
+  context.fillText(label, point.x, point.y - radius - 11);
 
   if (player.isIt) {
     context.font = "600 9px 'Geist Mono', ui-monospace, monospace";

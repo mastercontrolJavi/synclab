@@ -8,7 +8,14 @@ function snapshot(serverTime: number, x: number): SnapshotMessage {
     serverTick: serverTime,
     serverTime,
     players: {
-      remote: { id: "remote", x, y: 100, isIt: false, tagCount: 0 },
+      remote: {
+        id: "remote",
+        x,
+        y: 100,
+        isIt: false,
+        isScripted: false,
+        tagCount: 0,
+      },
     },
     acknowledgements: { remote: 0 },
     metrics: { actualTickRate: 30, actualSnapshotRate: 20, connectedPlayers: 2 },

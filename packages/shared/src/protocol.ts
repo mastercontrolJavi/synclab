@@ -51,6 +51,7 @@ function isPlayerSnapshot(value: unknown): value is PlayerSnapshot {
     isFiniteNumber(value.x) &&
     isFiniteNumber(value.y) &&
     typeof value.isIt === "boolean" &&
+    typeof value.isScripted === "boolean" &&
     isSafeSequence(value.tagCount)
   );
 }

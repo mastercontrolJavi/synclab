@@ -347,6 +347,7 @@ export class GameClient {
       this.localPredicted = {
         ...this.localPredicted,
         isIt: authoritative.isIt,
+        isScripted: authoritative.isScripted,
         tagCount: authoritative.tagCount,
       };
     } else {

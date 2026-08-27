@@ -27,10 +27,11 @@ export interface ClientContext {
 }
 
 interface RoomPlayer extends PlayerSnapshot {
-  socket: WebSocket;
+  socket: WebSocket | null;
   inputQueue: PlayerInputMessage[];
   lastReceivedInput: number;
   lastProcessedInput: number;
+  scriptedWaypointIndex: number;
 }
 
 interface Room {
@@ -46,6 +47,21 @@ interface LoopRates {
 }
 
 const MAX_SOCKET_BACKPRESSURE = 256 * 1024;
+const SCRIPTED_WAYPOINTS = [
+  { x: WORLD_WIDTH * 0.28, y: WORLD_HEIGHT * 0.28 },
+  { x: WORLD_WIDTH * 0.72, y: WORLD_HEIGHT * 0.72 },
+  { x: WORLD_WIDTH * 0.72, y: WORLD_HEIGHT * 0.28 },
+  { x: WORLD_WIDTH * 0.28, y: WORLD_HEIGHT * 0.72 },
+] as const;
+
+function roomSeed(roomId: string): number {
+  let hash = 2_166_136_261;
+  for (let index = 0; index < roomId.length; index += 1) {
+    hash ^= roomId.charCodeAt(index);
+    hash = Math.imul(hash, 16_777_619);
+  }
+  return hash >>> 0;
+}
 
 export class RoomManager {
   private readonly rooms = new Map<string, Room>();
@@ -60,26 +76,36 @@ export class RoomManager {
     }
 
     const room = this.rooms.get(roomId) ?? this.createRoom(roomId);
-    if (room.players.size >= 2) {
+    const humanPlayers = this.getHumanPlayers(room);
+    if (humanPlayers.length >= 2) {
       this.send(context.socket, { type: "room_full", roomId });
       return;
     }
 
-    const slot: 0 | 1 = room.players.size === 0 ? 0 : 1;
+    if (humanPlayers.length === 1) {
+      this.removeScriptedPlayer(room);
+    }
+
+    const slot: 0 | 1 = humanPlayers.length === 0 ? 0 : 1;
     const playerId = randomUUID().replaceAll("-", "").slice(0, 8);
     const spawn = createSpawnPosition(slot);
     const player: RoomPlayer = {
       id: playerId,
       ...spawn,
       isIt: slot === 0,
+      isScripted: false,
       tagCount: 0,
       socket: context.socket,
       inputQueue: [],
       lastReceivedInput: -1,
       lastProcessedInput: -1,
+      scriptedWaypointIndex: 0,
     };
 
     room.players.set(playerId, player);
+    if (humanPlayers.length === 0) {
+      this.spawnScriptedPlayer(room);
+    }
     context.playerId = playerId;
     context.roomId = roomId;
 
@@ -99,7 +125,7 @@ export class RoomManager {
     this.broadcast(room, {
       type: "player_joined",
       playerId,
-      connectedPlayers: room.players.size,
+      connectedPlayers: this.getHumanPlayers(room).length,
     });
   }
 
@@ -124,6 +150,11 @@ export class RoomManager {
       }
 
       for (const player of room.players.values()) {
+        if (player.isScripted) {
+          this.moveScriptedPlayer(player);
+          continue;
+        }
+
         let processed = 0;
         while (player.inputQueue.length > 0 && processed < MAX_INPUTS_PER_TICK) {
           const input = player.inputQueue.shift();
@@ -153,6 +184,7 @@ export class RoomManager {
           x: player.x,
           y: player.y,
           isIt: player.isIt,
+          isScripted: player.isScripted,
           tagCount: player.tagCount,
         };
         acknowledgements[player.id] = player.lastProcessedInput;
@@ -160,7 +192,7 @@ export class RoomManager {
 
       const metrics: SnapshotMetrics = {
         ...rates,
-        connectedPlayers: room.players.size,
+        connectedPlayers: this.getHumanPlayers(room).length,
       };
       this.broadcast(room, {
         type: "snapshot",
@@ -188,19 +220,21 @@ export class RoomManager {
     context.playerId = null;
     context.roomId = null;
 
-    if (room.players.size === 0) {
+    const humanPlayers = this.getHumanPlayers(room);
+    if (humanPlayers.length === 0) {
       this.rooms.delete(room.id);
       return;
     }
 
-    const remaining = room.players.values().next().value as RoomPlayer | undefined;
+    const remaining = humanPlayers[0];
     if (remaining) {
       remaining.isIt = true;
     }
+    this.spawnScriptedPlayer(room);
     this.broadcast(room, {
       type: "player_left",
       playerId,
-      connectedPlayers: room.players.size,
+      connectedPlayers: humanPlayers.length,
     });
   }
 
@@ -220,6 +254,83 @@ export class RoomManager {
       return null;
     }
     return this.rooms.get(context.roomId)?.players.get(context.playerId) ?? null;
+  }
+
+  private getHumanPlayers(room: Room): RoomPlayer[] {
+    return [...room.players.values()].filter((player) => !player.isScripted);
+  }
+
+  private spawnScriptedPlayer(room: Room): void {
+    if (
+      this.getHumanPlayers(room).length !== 1 ||
+      [...room.players.values()].some((player) => player.isScripted)
+    ) {
+      return;
+    }
+
+    const spawn = createSpawnPosition(1);
+    const scriptedPlayer: RoomPlayer = {
+      id: `scripted-${room.id}`,
+      ...spawn,
+      isIt: false,
+      isScripted: true,
+      tagCount: 0,
+      socket: null,
+      inputQueue: [],
+      lastReceivedInput: -1,
+      lastProcessedInput: -1,
+      scriptedWaypointIndex: roomSeed(room.id) % SCRIPTED_WAYPOINTS.length,
+    };
+    room.players.set(scriptedPlayer.id, scriptedPlayer);
+    room.tagCooldownTicks = 0;
+  }
+
+  private removeScriptedPlayer(room: Room): void {
+    const scriptedPlayer = [...room.players.values()].find(
+      (player) => player.isScripted,
+    );
+    if (!scriptedPlayer) {
+      return;
+    }
+
+    room.players.delete(scriptedPlayer.id);
+    if (scriptedPlayer.isIt) {
+      const humanPlayer = this.getHumanPlayers(room)[0];
+      if (humanPlayer) {
+        humanPlayer.isIt = true;
+      }
+    }
+    room.tagCooldownTicks = 0;
+  }
+
+  private moveScriptedPlayer(player: RoomPlayer): void {
+    let target = SCRIPTED_WAYPOINTS[player.scriptedWaypointIndex];
+    if (!target) {
+      player.scriptedWaypointIndex = 0;
+      target = SCRIPTED_WAYPOINTS[0];
+    }
+    if (!target) {
+      return;
+    }
+
+    let distanceToTarget = Math.hypot(target.x - player.x, target.y - player.y);
+    if (distanceToTarget <= PLAYER_RADIUS) {
+      player.scriptedWaypointIndex =
+        (player.scriptedWaypointIndex + 1) % SCRIPTED_WAYPOINTS.length;
+      target = SCRIPTED_WAYPOINTS[player.scriptedWaypointIndex] ?? target;
+      distanceToTarget = Math.hypot(target.x - player.x, target.y - player.y);
+    }
+
+    const position = applyMovement(
+      player,
+      {
+        moveX: (target.x - player.x) / Math.max(distanceToTarget, 1),
+        moveY: (target.y - player.y) / Math.max(distanceToTarget, 1),
+      },
+      FIXED_DT,
+    );
+    player.x = position.x;
+    player.y = position.y;
   }
 
   private resolveTag(room: Room): void {
@@ -244,7 +355,9 @@ export class RoomManager {
 
   private broadcast(room: Room, message: ServerMessage): void {
     for (const player of room.players.values()) {
-      this.send(player.socket, message);
+      if (player.socket) {
+        this.send(player.socket, message);
+      }
     }
   }
 

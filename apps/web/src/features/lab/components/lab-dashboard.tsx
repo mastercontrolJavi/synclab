@@ -8,6 +8,7 @@ import {
 import { AlertTriangle } from "lucide-react";
 
 import { GameClient } from "../game-client";
+import { getActivePreset, PRESET_CAPTIONS } from "../presets";
 import type {
   ClientMetrics,
   ConnectionState,
@@ -86,6 +87,9 @@ export function LabDashboard({ roomId, debug }: LabDashboardProps) {
     }
   };
 
+  const activePreset = getActivePreset(settings);
+  const presetCaption = activePreset ? PRESET_CAPTIONS[activePreset] ?? "" : "";
+
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
       <StatusHeader
@@ -114,6 +118,7 @@ export function LabDashboard({ roomId, debug }: LabDashboardProps) {
           connectedPlayers={metrics.connectedPlayers}
           connectionState={status}
           debug={debug}
+          caption={presetCaption}
         />
         <ControlPanel
           settings={settings}
