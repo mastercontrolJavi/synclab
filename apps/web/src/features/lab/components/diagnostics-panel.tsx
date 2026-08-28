@@ -59,7 +59,7 @@ export function DiagnosticsPanel({ metrics, settings }: DiagnosticsPanelProps) {
           <MetricRow label="Pending inputs" value={String(metrics.pendingInputs)} />
           <MetricRow
             label="Last acknowledged"
-            value={metrics.lastAcknowledgedInput < 0 ? "—" : `#${metrics.lastAcknowledgedInput}`}
+            value={metrics.lastAcknowledgedInput < 0 ? "N/A" : `#${metrics.lastAcknowledgedInput}`}
           />
           <MetricRow label="Prediction error" value={`${metrics.predictionError.toFixed(1)} px`} />
           <MetricRow label="Reconciliations" value={String(metrics.reconciliationCount)} />

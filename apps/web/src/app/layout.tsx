@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SyncLab — Multiplayer Networking Laboratory",
+  title: "SyncLab: Multiplayer Networking Laboratory",
   description:
     "Explore client prediction, server reconciliation, snapshot interpolation, latency, jitter, and packet loss in a live authoritative simulation.",
 };

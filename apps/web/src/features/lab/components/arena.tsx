@@ -124,7 +124,7 @@ export function Arena({
         {connectionState === "connected" && connectedPlayers < 2 ? (
           <div className="pointer-events-none absolute inset-x-0 top-5 flex justify-center">
             <div className="rounded-md border border-border bg-background/90 px-3 py-1.5 text-[11px] text-muted-foreground backdrop-blur-sm">
-              Solo mode · scripted peer active — share the room to replace it
+              Solo mode · scripted peer active; share the room to replace it
             </div>
           </div>
         ) : null}

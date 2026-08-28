@@ -358,7 +358,7 @@ export class GameClient {
       "inbound",
       "snapshot",
       `SNAPSHOT #${snapshot.serverTick}`,
-      `ACK ${acknowledgement < 0 ? "—" : acknowledgement}`,
+      `ACK ${acknowledgement < 0 ? "N/A" : acknowledgement}`,
     );
   }
 

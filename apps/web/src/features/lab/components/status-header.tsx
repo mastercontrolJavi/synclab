@@ -85,7 +85,7 @@ export function StatusHeader({
           <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
             Room
           </span>
-          <code className="font-mono text-[11px] text-foreground">{roomId || "—"}</code>
+          <code className="font-mono text-[11px] text-foreground">{roomId || "N/A"}</code>
         </div>
 
         <Tooltip>
