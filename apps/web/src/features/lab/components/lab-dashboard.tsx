@@ -36,6 +36,8 @@ const INITIAL_METRICS: ClientMetrics = {
   webSocketState: "connecting",
 };
 
+const DEFAULT_SERVER_URL = "wss://synclab-realtime-javiertpga.onrender.com";
+
 function defaultSettings(): LabSettings {
   return {
     ...DEFAULT_NETWORK_CONDITIONS,
@@ -60,7 +62,7 @@ export function LabDashboard({ roomId, debug }: LabDashboardProps) {
         roomId,
         serverUrl:
           process.env.NEXT_PUBLIC_WS_URL ??
-          "wss://server-production-6a10.up.railway.app",
+          DEFAULT_SERVER_URL,
         initialSettings: defaultSettings(),
         observer: {
           onStatus: setStatus,

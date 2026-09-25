@@ -1,0 +1,18 @@
+services:
+  - type: web
+    runtime: node
+    name: synclab-realtime-javiertpga
+    region: oregon
+    plan: free
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @synclab/shared build && pnpm --filter @synclab/server build
+    startCommand: pnpm --filter @synclab/server start
+    healthCheckPath: /health
+    buildFilter:
+      paths:
+        - apps/server/**
+        - packages/shared/**
+        - package.json
+        - pnpm-lock.yaml
+        - pnpm-workspace.yaml
+        - tsconfig.base.json
+        - render.yaml

@@ -4,7 +4,7 @@ SyncLab is an interactive real-time multiplayer networking laboratory. Two playe
 
 ## Live demo
 
-Deployment URLs can be added after the first Vercel and Railway release. The repository is configured for both platforms.
+The frontend is hosted on Vercel and the realtime server is hosted on Render.
 
 ## Try the idea in 30 seconds
 
@@ -145,19 +145,18 @@ Add `?debug=true` to a room URL to display authoritative, predicted, rendered, a
 
 ## Deployment
 
-### Railway server
+### Render realtime server (free tier)
 
-1. Create a Railway service from this repository and keep the repository root as the service root.
-2. Railway reads `railway.json`, installs the frozen workspace, builds the shared package and server, then starts `@synclab/server`.
-3. Railway supplies `PORT`; no custom value is required.
-4. Confirm `https://<railway-domain>/health` returns `{ "ok": true, ... }`.
-5. Copy the public WebSocket URL using `wss://`.
+1. In Render, select **New → Blueprint** and connect this repository. Render reads the root `render.yaml` file and creates the free `synclab-realtime-javiertpga` web service.
+2. It installs the frozen workspace, builds the shared package and server, and starts `@synclab/server`. Render supplies `PORT`; no custom value is required.
+3. Confirm `https://synclab-realtime-javiertpga.onrender.com/health` returns `{ "ok": true, ... }`.
+4. The free service sleeps after 15 minutes without inbound traffic. Its first connection can take about a minute to wake it; SyncLab retries long enough to recover automatically.
 
 ### Vercel client
 
 1. Import the same repository into Vercel with the repository root as the project root.
 2. `vercel.json` builds the shared package and the web workspace, then serves `apps/web/.next`.
-3. Add `NEXT_PUBLIC_WS_URL=wss://<railway-domain>` in Production, Preview, and Development as appropriate.
+3. The Render URL is the default connection target. To use a different server, set `NEXT_PUBLIC_WS_URL` to its `wss://` URL in Production, Preview, and Development as appropriate, then redeploy (public Next.js environment values are compiled into the browser bundle).
 4. Deploy, then open two tabs with the same `?room=` value.
 
 No secrets are required. The public URL is intentionally a browser-visible environment value.

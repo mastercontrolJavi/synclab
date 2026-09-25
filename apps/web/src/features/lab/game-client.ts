@@ -35,7 +35,8 @@ interface GameClientOptions {
   observer: GameClientObserver;
 }
 
-const MAX_RECONNECT_ATTEMPTS = 6;
+// A free Render service can take about a minute to wake after being idle.
+const MAX_RECONNECT_ATTEMPTS = 12;
 const METRICS_INTERVAL_MS = 250;
 const PING_INTERVAL_MS = 1_000;
 const SMALL_CORRECTION_LIMIT = 24;
