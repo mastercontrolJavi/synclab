@@ -130,3 +130,7 @@ The full log, with reasons, is in [DECISIONS.md](DECISIONS.md). The audit that m
 ## Case study
 
 The longer write-up is [docs/case-study.md](docs/case-study.md).
+
+## Launch video
+
+A 26-second product film made from real captured footage lives in [`video/`](video/README.md). The final file is [`video/out/synclab-launch-2560x1440.mp4`](video/out/synclab-launch-2560x1440.mp4), and the folder has instructions to rerender it or replace the music.

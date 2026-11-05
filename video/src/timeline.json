@@ -1,0 +1,26 @@
+{
+  "fps": 30,
+  "width": 2560,
+  "height": 1440,
+  "durationSec": 26,
+  "bpm": 120,
+  "cues": {
+    "hook": 0,
+    "meet": 4.0,
+    "lab": 5.75,
+    "prediction": 8.0,
+    "reconciliation": 10.5,
+    "interpolation": 13.0,
+    "system": 15.0,
+    "conditions": 16.0,
+    "chaos": 17.5,
+    "difference": 18.5,
+    "close": 21.0,
+    "endcard": 23.5
+  },
+  "footage": {
+    "compare": { "file": "footage/compare.mp4", "note": "Compare view, Bad Wi-Fi. Frame 0 = page load (launch reveal)." },
+    "single": { "file": "footage/single.mp4", "note": "Single view, Mobile 3G, 5760x3240." },
+    "tradeoff": { "file": "footage/tradeoff.mp4", "note": "Compare view. Perfect LAN until frame 75, then the Chaos preset (key 4)." }
+  }
+}
