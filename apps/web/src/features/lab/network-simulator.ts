@@ -4,6 +4,7 @@ import {
   type ServerMessage,
 } from "@synclab/shared";
 
+import { createBrowserSocket, type SocketFactory, type SocketLike } from "./local-server";
 import type { NetworkConditions } from "./types";
 
 interface TransportStats {
@@ -12,7 +13,7 @@ interface TransportStats {
   packetsDropped: number;
 }
 
-interface PacketEvent {
+export interface PacketEvent {
   direction: "outbound" | "inbound";
   dropped: boolean;
   messageType: string;
@@ -28,6 +29,7 @@ interface SimulatedTransportOptions {
   onError: () => void;
   onMessage: (message: ServerMessage) => void;
   onPacket: (event: PacketEvent) => void;
+  socketFactory?: SocketFactory;
 }
 
 class SeededRandom {
@@ -40,7 +42,7 @@ class SeededRandom {
 }
 
 export class SimulatedTransport {
-  private socket: WebSocket | null = null;
+  private socket: SocketLike | null = null;
   private conditions: NetworkConditions;
   private readonly random: SeededRandom;
   private readonly pendingTimers = new Set<number>();
@@ -57,7 +59,7 @@ export class SimulatedTransport {
 
   connect(): void {
     this.clearPendingDeliveries();
-    this.socket = new WebSocket(this.options.url);
+    this.socket = (this.options.socketFactory ?? createBrowserSocket)(this.options.url);
     this.socket.addEventListener("open", this.options.onOpen);
     this.socket.addEventListener("close", this.options.onClose);
     this.socket.addEventListener("error", this.options.onError);

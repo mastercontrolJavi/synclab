@@ -4,3 +4,6 @@ export * from "./protocol.js";
 export * from "./reconciliation.js";
 export * from "./simulation.js";
 export * from "./types.js";
+export * from "./server/authoritative-server.js";
+export * from "./server/fixed-timestep-loop.js";
+export * from "./server/room-manager.js";

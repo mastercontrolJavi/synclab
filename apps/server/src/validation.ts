@@ -1,7 +1,7 @@
-import { isClientMessage, type ClientMessage } from "@synclab/shared";
+import { decodeClientText, type ClientMessage } from "@synclab/shared";
 import type { RawData } from "ws";
 
-function rawDataToText(rawData: RawData): string | null {
+export function rawDataToText(rawData: RawData): string | null {
   if (typeof rawData === "string") {
     return rawData;
   }
@@ -18,15 +18,5 @@ function rawDataToText(rawData: RawData): string | null {
 }
 
 export function decodeClientMessage(rawData: RawData): ClientMessage | null {
-  const text = rawDataToText(rawData);
-  if (text === null) {
-    return null;
-  }
-
-  try {
-    const value: unknown = JSON.parse(text);
-    return isClientMessage(value) ? value : null;
-  } catch {
-    return null;
-  }
+  return decodeClientText(rawDataToText(rawData));
 }

@@ -2,16 +2,16 @@ import {
   FIXED_DT,
   MAX_CATCH_UP_STEPS,
   SNAPSHOT_INTERVAL_MS,
-} from "@synclab/shared";
+} from "../constants.js";
 
-interface LoopMetrics {
+export interface LoopMetrics {
   actualTickRate: number;
   actualSnapshotRate: number;
 }
 
 export class FixedTimestepLoop {
   private running = false;
-  private timer: NodeJS.Timeout | null = null;
+  private timer: ReturnType<typeof setTimeout> | null = null;
   private previousTime = 0;
   private simulationAccumulator = 0;
   private snapshotAccumulatorMs = 0;

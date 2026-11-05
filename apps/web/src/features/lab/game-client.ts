@@ -17,9 +17,14 @@ import {
   type Vector2,
 } from "@synclab/shared";
 
-import { hashSeed, SimulatedTransport } from "./network-simulator";
+import type { SocketFactory } from "./local-server";
+import { hashSeed, SimulatedTransport, type PacketEvent } from "./network-simulator";
 import type {
   ClientMetrics,
+  ClientTelemetry,
+  CorrectionRecord,
+  PacketFlight,
+  PacketKind,
   ConnectionState,
   GameClientObserver,
   LabSettings,
@@ -33,6 +38,7 @@ interface GameClientOptions {
   serverUrl: string;
   initialSettings: LabSettings;
   observer: GameClientObserver;
+  socketFactory?: SocketFactory;
 }
 
 // A free Render service can take about a minute to wake after being idle.
@@ -40,6 +46,26 @@ const MAX_RECONNECT_ATTEMPTS = 12;
 const METRICS_INTERVAL_MS = 250;
 const PING_INTERVAL_MS = 1_000;
 const SMALL_CORRECTION_LIMIT = 24;
+// Telemetry is read-only instrumentation for the visualizations.
+const MAX_PACKET_FLIGHTS = 400;
+const PACKET_RETENTION_MS = 1_500;
+const MAX_CORRECTIONS = 32;
+const LOSS_WINDOW_MS = 5_000;
+const CORRECTION_WINDOW_MS = 3_000;
+
+function packetKind(messageType: string): PacketKind {
+  switch (messageType) {
+    case "player_input":
+      return "input";
+    case "snapshot":
+      return "snapshot";
+    case "ping":
+    case "pong":
+      return "ping";
+    default:
+      return "control";
+  }
+}
 
 export class GameClient {
   private readonly transport: SimulatedTransport;
@@ -75,6 +101,13 @@ export class GameClient {
   private metricsTimer: number | null = null;
   private reconnectTimer: number | null = null;
   private joinRetryTimer: number | null = null;
+  private readonly packetFlights: PacketFlight[] = [];
+  private readonly corrections: CorrectionRecord[] = [];
+  private readonly lossSamples: { at: number; dropped: boolean }[] = [];
+  private packetId = 0;
+  private correctionId = 0;
+  private jitterMs = 0;
+  private lastSnapshotArrival: { at: number; serverTime: number } | null = null;
 
   constructor(private readonly options: GameClientOptions) {
     this.settings = options.initialSettings;
@@ -86,7 +119,9 @@ export class GameClient {
       onClose: this.handleSocketClose,
       onError: this.handleSocketError,
       onMessage: this.handleMessage,
+      socketFactory: options.socketFactory,
       onPacket: (packet) => {
+        this.recordPacket(packet);
         if (packet.dropped) {
           this.pushEvent(
             packet.direction,
@@ -154,6 +189,46 @@ export class GameClient {
         : this.localAuthoritative;
       this.localPredicted = { ...this.localAuthoritative, ...reconciled };
     }
+  }
+
+  /** Read-only view of in-flight packets and recent corrections. */
+  getTelemetry(): ClientTelemetry {
+    const cutoff = performance.now() - PACKET_RETENTION_MS;
+    while (this.packetFlights.length > 0) {
+      const first = this.packetFlights[0];
+      if (!first || first.sentAt + first.delayMs >= cutoff) {
+        break;
+      }
+      this.packetFlights.shift();
+    }
+    return { packets: this.packetFlights, corrections: this.corrections };
+  }
+
+  /** Where the local player is drawn, for input helpers like the autopilot. */
+  getLocalPosition(): Vector2 | null {
+    return this.localPredicted
+      ? { x: this.localPredicted.x, y: this.localPredicted.y }
+      : null;
+  }
+
+  /**
+   * Where the pending inputs say you should be, computed with the shared
+   * reconciliation helper. Drawn only when prediction is off, to show the lag
+   * between keypress and authority. Display only; never fed back.
+   */
+  getInputPreview(): Vector2 | null {
+    if (!this.localAuthoritative) {
+      return null;
+    }
+    return reconcilePosition(
+      this.localAuthoritative,
+      this.lastAcknowledgedInput,
+      this.pendingInputs,
+    ).position;
+  }
+
+  getStatus(): ConnectionState {
+    return this.status;
   }
 
   setInputDirection(moveX: number, moveY: number): void {
@@ -288,6 +363,7 @@ export class GameClient {
   };
 
   private handleSnapshot(snapshot: SnapshotMessage): void {
+    this.measureJitter(snapshot);
     insertSnapshotSorted(this.snapshots, snapshot, MAX_SNAPSHOT_BUFFER);
     if (snapshot.serverTick <= this.lastHandledServerTick) {
       return;
@@ -330,6 +406,7 @@ export class GameClient {
 
       if (previousPredicted && correction > 0.05) {
         this.reconciliationCount += 1;
+        this.recordCorrection(previousPredicted, nextPredicted, authoritative, remainingInputs, correction);
         this.pushEvent(
           "local",
           "reconcile",
@@ -361,6 +438,79 @@ export class GameClient {
       `SNAPSHOT #${snapshot.serverTick}`,
       `ACK ${acknowledgement < 0 ? "N/A" : acknowledgement}`,
     );
+  }
+
+  private recordPacket(packet: PacketEvent): void {
+    this.packetFlights.push({
+      id: this.packetId,
+      direction: packet.direction,
+      kind: packetKind(packet.messageType),
+      sentAt: performance.now(),
+      delayMs: packet.delayMs,
+      dropped: packet.dropped,
+    });
+    this.packetId += 1;
+    this.lossSamples.push({ at: performance.now(), dropped: packet.dropped });
+    if (this.packetFlights.length > MAX_PACKET_FLIGHTS) {
+      this.packetFlights.splice(0, this.packetFlights.length - MAX_PACKET_FLIGHTS);
+    }
+  }
+
+  private recordCorrection(
+    from: Vector2,
+    to: Vector2,
+    authoritative: Vector2,
+    replayedInputs: readonly MovementInput[],
+    distance: number,
+  ): void {
+    // Re-derive the replayed path with the same shared movement rule, for display only.
+    const replay: Vector2[] = [{ x: authoritative.x, y: authoritative.y }];
+    let cursor: Vector2 = replay[0] ?? authoritative;
+    for (const input of replayedInputs) {
+      cursor = applyMovement(cursor, input, FIXED_DT);
+      replay.push(cursor);
+    }
+    this.corrections.push({
+      id: this.correctionId,
+      at: performance.now(),
+      from: { x: from.x, y: from.y },
+      to: { x: to.x, y: to.y },
+      authoritative: { x: authoritative.x, y: authoritative.y },
+      replay,
+      distance,
+      replayed: replayedInputs.length,
+    });
+    this.correctionId += 1;
+    if (this.corrections.length > MAX_CORRECTIONS) {
+      this.corrections.splice(0, this.corrections.length - MAX_CORRECTIONS);
+    }
+  }
+
+  private measureJitter(snapshot: SnapshotMessage): void {
+    const arrival = performance.now();
+    const previous = this.lastSnapshotArrival;
+    if (previous && snapshot.serverTime > previous.serverTime) {
+      const transitDelta =
+        arrival - previous.at - (snapshot.serverTime - previous.serverTime);
+      this.jitterMs += (Math.abs(transitDelta) - this.jitterMs) / 16;
+    }
+    if (!previous || snapshot.serverTime > previous.serverTime) {
+      this.lastSnapshotArrival = { at: arrival, serverTime: snapshot.serverTime };
+    }
+  }
+
+  private measureLossPercent(now: number): number {
+    while (this.lossSamples.length > 0 && now - (this.lossSamples[0]?.at ?? now) > LOSS_WINDOW_MS) {
+      this.lossSamples.shift();
+    }
+    const total = this.lossSamples.length;
+    let dropped = 0;
+    for (const sample of this.lossSamples) {
+      if (sample.dropped) {
+        dropped += 1;
+      }
+    }
+    return total === 0 ? 0 : (dropped / total) * 100;
   }
 
   private handlePong(clientTime: number, serverTime: number): void {
@@ -458,6 +608,8 @@ export class GameClient {
     this.lastHandledServerTick = -1;
     this.inputSequence = 0;
     this.correctionOffset = { x: 0, y: 0 };
+    this.lastSnapshotArrival = null;
+    this.jitterMs = 0;
   }
 
   private setStatus(status: ConnectionState): void {
@@ -467,8 +619,18 @@ export class GameClient {
 
   private readonly publishState = (): void => {
     const transportStats = this.transport.getStats();
+    const now = performance.now();
+    let recentCorrections = 0;
+    for (const correction of this.corrections) {
+      if (now - correction.at <= CORRECTION_WINDOW_MS) {
+        recentCorrections += 1;
+      }
+    }
     const metrics: ClientMetrics = {
       rttMs: this.smoothedRttMs,
+      jitterMs: this.jitterMs,
+      lossPercent: this.measureLossPercent(now),
+      correctionsPerSecond: recentCorrections / (CORRECTION_WINDOW_MS / 1_000),
       serverTickRate: this.serverTickRate,
       snapshotRate: this.snapshotRate,
       pendingInputs: this.pendingInputs.length,
