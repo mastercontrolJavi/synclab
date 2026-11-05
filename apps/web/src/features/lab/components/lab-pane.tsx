@@ -34,6 +34,8 @@ interface LabPaneProps {
   oneWayMs: number;
   overlay: PaneOverlay | null;
   badge?: ReactNode;
+  /** Floats over the arena when no state overlay is showing. */
+  hint?: ReactNode;
   className?: string;
   tourId?: string;
 }
@@ -57,6 +59,7 @@ export function LabPane({
   oneWayMs,
   overlay,
   badge,
+  hint,
   className,
   tourId,
 }: LabPaneProps) {
@@ -157,7 +160,7 @@ export function LabPane({
 
       <div className="relative aspect-[8/5] w-full bg-surface-0">
         <canvas ref={arenaRef} className="absolute inset-0 size-full" aria-hidden="true" />
-        {overlay ? <PaneStateOverlay overlay={overlay} /> : null}
+        {overlay ? <PaneStateOverlay overlay={overlay} /> : hint}
       </div>
 
       <div className="relative h-14 border-t border-line bg-surface-0/60" data-tour={tourId ? `${tourId}-lane` : undefined}>

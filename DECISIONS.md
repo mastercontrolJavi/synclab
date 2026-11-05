@@ -97,3 +97,10 @@ Every non-obvious decision in the UI/UX revamp, with its reason. Tie-break rule:
 | Q4 | Frame rate: production build, Compare view, every visualization on, Chaos preset: **60.3 fps, worst frame 17 ms**. No effects were cut. |
 | Q5 | Fix found in QA: the dock rendered twice (desktop and sheet) with duplicate element IDs. IDs are now scoped with `useId`. |
 | Q6 | Fix found in QA: the AUTOPILOT badge showed on a pane that wasn't connected. It now shows only when connected. |
+
+## Follow-up fixes
+
+| # | Decision | Why |
+|---|---|---|
+| F1 | **Bug:** the intro's "Launch lab" and "How it works" buttons stayed at `opacity: 0`. Cause: the shadcn Button has `transition: all`. Under StrictMode's double effect run, `gsap.from()` read the value mid CSS transition (≈0) as its end value and animated 0 → 0. Fix: every intro and launch-reveal tween is now a `fromTo` with explicit end values, and the intro CTAs only transition color, background and box-shadow. | A CSS transition on a property GSAP animates is a race. Explicit end values make the result deterministic. |
+| F2 | The autopilot handoff is now a pill floating at the bottom of each arena: "Autopilot · Press W A S D to take control". The keys light up in sequence on a loop and the pill breathes. On touch devices it says "Drag the joystick to take control". It hides as soon as a key or the joystick is used and comes back when the autopilot resumes after 6 s idle. The intro also says "It starts on autopilot. Press W A S D any time to take control." The small header badge was removed. | Feedback: the takeover affordance wasn't obvious. It now sits where the eye already is (on the arena), in both panes, and doesn't cause layout shift. |

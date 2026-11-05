@@ -50,18 +50,21 @@ export function IntroOverlay({ open, serverLine, serverReady, onLaunch, onHowItW
       if (open) {
         gsap.set(root, { autoAlpha: 1 });
         if (reduce) {
-          gsap.from("[data-intro]", { opacity: 0, duration: DURATION.slow });
+          gsap.fromTo("[data-intro], [data-intro-char]", { opacity: 0 }, { opacity: 1, duration: DURATION.slow });
           return;
         }
+        // fromTo with explicit end values: a .from() can read a mid-transition
+        // value as its target (StrictMode double-run) and get stuck invisible.
+        const shown = { opacity: 1, x: 0, y: 0, yPercent: 0, scale: 1, rotate: 0 };
         const timeline = gsap.timeline({ defaults: { ease: EASE.out } });
         timeline
-          .from("[data-intro='mark']", { scale: 0.6, opacity: 0, rotate: -12, duration: DURATION.xslow, ease: EASE.pop })
-          .from("[data-intro='eyebrow']", { y: 10, opacity: 0, duration: DURATION.slow }, "-=0.55")
-          .from("[data-intro-char]", { yPercent: 110, opacity: 0, duration: DURATION.xslow, stagger: 0.035 }, "-=0.3")
-          .from("[data-intro='pitch']", { y: 14, opacity: 0, duration: DURATION.xslow }, "-=0.55")
-          .from("[data-intro='bullet']", { x: -12, opacity: 0, duration: DURATION.slow, stagger: STAGGER.loose }, "-=0.45")
-          .from("[data-intro='cta']", { y: 10, opacity: 0, scale: 0.96, duration: DURATION.slow, stagger: STAGGER.base }, "-=0.25")
-          .from("[data-intro='meta']", { opacity: 0, duration: DURATION.slow }, "-=0.2");
+          .fromTo("[data-intro='mark']", { scale: 0.6, opacity: 0, rotate: -12 }, { ...shown, duration: DURATION.xslow, ease: EASE.pop })
+          .fromTo("[data-intro='eyebrow']", { y: 10, opacity: 0 }, { ...shown, duration: DURATION.slow }, "-=0.55")
+          .fromTo("[data-intro-char]", { yPercent: 110, opacity: 0 }, { ...shown, duration: DURATION.xslow, stagger: 0.035 }, "-=0.3")
+          .fromTo("[data-intro='pitch']", { y: 14, opacity: 0 }, { ...shown, duration: DURATION.xslow }, "-=0.55")
+          .fromTo("[data-intro='bullet']", { x: -12, opacity: 0 }, { ...shown, duration: DURATION.slow, stagger: STAGGER.loose }, "-=0.45")
+          .fromTo("[data-intro='cta']", { y: 10, opacity: 0, scale: 0.96 }, { ...shown, duration: DURATION.slow, stagger: STAGGER.base }, "-=0.25")
+          .fromTo("[data-intro='meta']", { opacity: 0 }, { opacity: 1, duration: DURATION.slow }, "-=0.2");
       } else {
         const timeline = gsap.timeline({ onComplete: () => void gsap.set(root, { autoAlpha: 0 }) });
         if (reduce) {
@@ -149,19 +152,29 @@ export function IntroOverlay({ open, serverLine, serverReady, onLaunch, onHowItW
             data-intro="cta"
             size="lg"
             onClick={onLaunch}
-            className="h-12 rounded-xl px-5 text-[15px] shadow-glow-accent"
+            className="h-12 rounded-xl px-5 text-[15px] shadow-glow-accent transition-[background-color,box-shadow]"
           >
             Launch lab
             <ArrowRight className="size-4" aria-hidden="true" />
             <kbd className="ml-1 rounded border border-brand-ink/25 px-1.5 font-mono text-[11px] text-brand-ink/70">↵</kbd>
           </Button>
-          <Button data-intro="cta" size="lg" variant="ghost" onClick={onHowItWorks} className="h-12 rounded-xl px-4 text-[15px] text-ink-muted hover:text-ink">
+          <Button data-intro="cta" size="lg" variant="ghost" onClick={onHowItWorks} className="h-12 rounded-xl px-4 text-[15px] text-ink-muted transition-[background-color,color] hover:text-ink">
             <BookOpen className="size-4" aria-hidden="true" />
             How it works
           </Button>
         </div>
 
-        <div data-intro="meta" className="mt-10 flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[12px] text-ink-faint">
+        <p data-intro="meta" className="mt-4 flex flex-wrap items-center gap-1.5 text-[13px] text-ink-muted">
+          It starts on autopilot. Press
+          {["W", "A", "S", "D"].map((key) => (
+            <kbd key={key} className="kbd !text-ink">
+              {key}
+            </kbd>
+          ))}
+          any time to take control.
+        </p>
+
+        <div data-intro="meta" className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[12px] text-ink-faint">
           <span className="flex items-center gap-2">
             <span className={serverReady ? "size-1.5 rounded-full bg-server" : "size-1.5 animate-pulse rounded-full bg-ink-muted"} aria-hidden="true" />
             {serverLine}

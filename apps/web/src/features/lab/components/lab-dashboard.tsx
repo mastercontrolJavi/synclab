@@ -6,7 +6,6 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 
 import { Button } from "@/components/ui/button";
 import { MotionOverlay } from "@/components/ui/motion-overlay";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DURATION, EASE, gsap, STAGGER, useGSAP } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +14,7 @@ import type { ConnectionState, LabSettings, NetcodeSettings } from "../types";
 import { useLabControls } from "../use-lab-controls";
 import { useLabInput } from "../use-lab-input";
 import { NAIVE_NETCODE, useLabSession, type ServerMode, type ServerPreference } from "../use-lab-session";
+import { AutopilotHint } from "./autopilot-hint";
 import { ControlDock } from "./control-dock";
 import { GuidedTour } from "./guided-tour";
 import { HowItWorks } from "./how-it-works";
@@ -50,6 +50,21 @@ const subscribeReducedMotion = (callback: () => void) => {
   query.addEventListener("change", callback);
   return () => query.removeEventListener("change", callback);
 };
+
+const subscribeCoarsePointer = (callback: () => void) => {
+  const query = window.matchMedia("(pointer: coarse)");
+  query.addEventListener("change", callback);
+  return () => query.removeEventListener("change", callback);
+};
+
+/** Touch-first device: hints talk about the joystick instead of keys. */
+function useCoarsePointer(): boolean {
+  return useSyncExternalStore(
+    subscribeCoarsePointer,
+    () => window.matchMedia("(pointer: coarse)").matches,
+    () => false,
+  );
+}
 
 function useReducedMotion(): boolean {
   return useSyncExternalStore(
@@ -140,6 +155,7 @@ export function LabDashboard({ roomId, serverPreference, showIntro }: LabDashboa
   const controls = useLabControls();
   const { settings, viz, view } = controls;
   const reducedMotion = useReducedMotion();
+  const coarsePointer = useCoarsePointer();
   const split = view === "split";
   const session = useLabSession({ roomId, split, serverPreference, settings });
   const [launched, setLaunched] = useState(!showIntro);
@@ -203,16 +219,17 @@ export function LabDashboard({ roomId, serverPreference, showIntro }: LabDashboa
         },
         (context) => {
           if (context.conditions?.reduce) {
-            gsap.from("[data-reveal-root]", { opacity: 0, duration: DURATION.slow });
+            gsap.fromTo("[data-reveal-root]", { opacity: 0 }, { opacity: 1, duration: DURATION.slow });
             return;
           }
+          const shown = { opacity: 1, x: 0, y: 0, scale: 1 };
           const timeline = gsap.timeline({ defaults: { ease: EASE.out }, delay: 0.15 });
           timeline
-            .from("[data-reveal-header]", { y: -12, opacity: 0, duration: DURATION.slow })
-            .from("[data-pane]", { y: 24, opacity: 0, scale: 0.985, duration: DURATION.xslow, stagger: STAGGER.loose }, "-=0.2")
-            .from("aside [data-reveal]", { x: 12, opacity: 0, duration: DURATION.slow, stagger: STAGGER.tight }, "-=0.6")
-            .from("[data-tour='legend'] [data-reveal]", { y: 6, opacity: 0, duration: DURATION.slow, stagger: STAGGER.tight }, "-=0.5")
-            .from("[data-tour='telemetry'] [data-reveal]", { y: 10, opacity: 0, duration: DURATION.slow, stagger: STAGGER.base }, "-=0.45");
+            .fromTo("[data-reveal-header]", { y: -12, opacity: 0 }, { ...shown, duration: DURATION.slow })
+            .fromTo("[data-pane]", { y: 24, opacity: 0, scale: 0.985 }, { ...shown, duration: DURATION.xslow, stagger: STAGGER.loose }, "-=0.2")
+            .fromTo("aside [data-reveal]", { x: 12, opacity: 0 }, { ...shown, duration: DURATION.slow, stagger: STAGGER.tight }, "-=0.6")
+            .fromTo("[data-tour='legend'] [data-reveal]", { y: 6, opacity: 0 }, { ...shown, duration: DURATION.slow, stagger: STAGGER.tight }, "-=0.5")
+            .fromTo("[data-tour='telemetry'] [data-reveal]", { y: 10, opacity: 0 }, { ...shown, duration: DURATION.slow, stagger: STAGGER.base }, "-=0.45");
         },
       );
       return () => mm.revert();
@@ -278,22 +295,8 @@ export function LabDashboard({ roomId, serverPreference, showIntro }: LabDashboa
   const mainOverlay = paneOverlay(session.status, session.serverMode, session.retry, openFreshRoom);
   const naiveOverlay = paneOverlay(session.naiveStatus, session.serverMode, session.retry, openFreshRoom);
 
-  const autopilotBadge = input.autopilot && connected ? (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span
-          tabIndex={0}
-          className="flex items-center gap-1.5 rounded-[5px] border border-line-strong bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] leading-none text-ink-muted outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <span className="size-1.5 animate-pulse rounded-full bg-predicted" aria-hidden="true" />
-          AUTOPILOT
-        </span>
-      </TooltipTrigger>
-      <TooltipContent side="bottom">
-        Driving itself so you can watch. Press W A S D (or drag the joystick) to take over.
-      </TooltipContent>
-    </Tooltip>
-  ) : null;
+  const showAutopilotHint = input.autopilot && connected && settled && !tourOpen;
+  const autopilotHint = <AutopilotHint active={showAutopilotHint} touch={coarsePointer} />;
 
   return (
     <div ref={rootRef} data-reveal-root className="flex min-h-dvh flex-col bg-background bg-grid text-foreground">
@@ -332,6 +335,7 @@ export function LabDashboard({ roomId, serverPreference, showIntro }: LabDashboa
                 reducedMotion={reducedMotion}
                 oneWayMs={oneWayMs}
                 overlay={naiveOverlay}
+                hint={<AutopilotHint active={showAutopilotHint} touch={coarsePointer} />}
                 tourId="pane-naive"
               />
             ) : null}
@@ -345,7 +349,7 @@ export function LabDashboard({ roomId, serverPreference, showIntro }: LabDashboa
               reducedMotion={reducedMotion}
               oneWayMs={oneWayMs}
               overlay={mainOverlay}
-              badge={autopilotBadge}
+              hint={autopilotHint}
               tourId="pane-predicted"
             />
           </div>
