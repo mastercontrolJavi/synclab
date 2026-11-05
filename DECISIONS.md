@@ -42,3 +42,23 @@ Every non-obvious decision in the UI/UX revamp, with its reason. Tie-break rule:
 | D2.9 | Telemetry shows 6 primary cards (RTT, jitter, loss, tick rate, pending inputs, corrections/s), each with a tooltip sentence, the configured value next to the measured one, a GSAP-tweened number and a 15 s SVG sparkline. Snapshot rate, last ack, prediction gap and packet counters move to a quiet footer row. | Hierarchy (audit #8). Configured vs measured teaches that sliders are inputs and the cards are observations. |
 | D2.10 | Removed the raw event log and the fake "simulated transit" bar. | The packet lane and canvas correction chips carry the same information spatially. Prefer deleting over adding. |
 | D2.11 | Canvas labels claim space in priority order (player names, then ghosts, then correction chips) and try 4 positions to avoid overlap. | Fixes audit #10. |
+
+## Phase 3: Controls and UX
+
+| # | Decision | Why |
+|---|---|---|
+| D3.1 | **Compare (split) view is the default on every screen size.** On phones the panes stack vertically. The top bar has a two-option switch, Compare / Single (`V`). | The comparison is the money shot (audit #3). Stacked panes still read at 375 px. |
+| D3.2 | In Compare view the left pane is a locked naive baseline (prediction, reconciliation and interpolation all off). The netcode switches drive the right pane. The dock says "right pane", with a tooltip explaining why. | One fixed reference plus one experimental pane keeps every toggle a comparison, not a memory test. |
+| D3.3 | The right pane's subtitle rewrites itself for each switch combination ("Predicts but never corrects. Watch it drift from the server"). | Every toggle explains its own consequence in place. |
+| D3.4 | Presets became network presets only: Perfect LAN (10/0/0), Bad Wi-Fi (150/30/3, the default), Mobile 3G (300/80/6) and Chaos (400/100/15), on keys `1`–`4`. The netcode switches are separate. The old "Naive/Modern" presets are gone because Compare view replaces them. | Conditions and techniques are orthogonal. Mixing them hid which one caused the change. |
+| D3.5 | Choosing a preset tweens the real settings for ~0.6 s with GSAP, so sliders glide and the network degrades live. Dragging a slider kills any running tween. | "Animate sliders to new values", and the viewer sees cause and effect. |
+| D3.6 | Shortcuts: `WASD`/arrows move, `1–4` presets, `P R I` netcode, `G T K` visualizations, `V` view, `H` how it works, `?` list, `Esc` close. None collide with `WASD`. | Audit #14. Letters are mnemonic. |
+| D3.7 | The tour has 5 steps (panes, ghost, packet lane, presets, telemetry). The spotlight is an SVG mask with a stroked rect, both moved with GSAP attribute tweens (no layout). It starts once the lab first connects, is skippable (Esc/Skip), supports ←/→/Enter, and is remembered in `localStorage` with every access wrapped in try/catch. | Brief. It waits for a live canvas so the tour never points at an empty state. |
+| D3.8 | Every metric, slider, switch, preset, legend item and visualization toggle has a one-sentence tooltip. Tooltips moved to a dark surface token. | Audit #8/#14. |
+| D3.9 | Pane states: connecting (live: "Waking the live server…", local: "Starting the in-browser server…"), room full (with "Open a fresh room"), unavailable (with Retry). The canvas grid always draws underneath, so it is never blank. | Audit #1/#14. |
+| D3.10 | Mobile: below `lg` the dock lives in a GSAP bottom sheet opened from a floating "Controls" button, and a touch joystick feeds the same input path as the keyboard. | Audit #6. Touch had no input at all before. |
+| D3.11 | `MotionOverlay` is one always-mounted, `inert`-when-closed primitive for the dialog, drawer and sheet, with GSAP enter and exit and focus return. | Exit animations need the node mounted, and one primitive keeps motion consistent. |
+| D3.12 | The "How it works" drawer shipped in this phase (it was planned for Phase 5) because the top bar and the `H` shortcut point to it. | Never ship a button that leads nowhere. |
+| D3.13 | Assumptions: author name "Javier" (from the account handle) and default site URL `https://synclab.vercel.app`, overridable with `NEXT_PUBLIC_SITE_URL`. Both live in `src/lib/site.ts`. | Brief: don't ask, state assumptions. Edit one file to change them. |
+| D3.14 | Under heavy correction rates, only the newest correction gets a text chip, there are at most 4 live effects, and labels are clamped inside the canvas. | Chaos preset stacked 4 chips and pushed one past the edge. |
+| D3.15 | Removed the `?debug=true` mode. Ghosts are on by default and can be toggled with `G`. | The debug overlay was the most important visualization and it was hidden. |

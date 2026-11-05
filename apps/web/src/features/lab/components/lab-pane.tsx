@@ -121,7 +121,7 @@ export function LabPane({
             <span className={cn("size-2 shrink-0 rounded-full", accent)} aria-hidden="true" />
             <h2 className="truncate text-[14px] font-semibold tracking-tight text-ink">{title}</h2>
           </div>
-          <p className="mt-0.5 truncate text-[12px] text-ink-muted">{subtitle}</p>
+          <p className="mt-0.5 line-clamp-2 text-[12px] text-ink-muted sm:truncate">{subtitle}</p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           {badge}

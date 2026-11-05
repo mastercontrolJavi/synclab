@@ -55,7 +55,7 @@ interface LabelBox {
   height: number;
 }
 
-const MAX_EFFECTS = 6;
+const MAX_EFFECTS = 4;
 const MIN_VISIBLE_CORRECTION = 1;
 
 function toCanvas(point: Vector2, transform: ViewportTransform): Vector2 {
@@ -79,6 +79,7 @@ export class ArenaRenderer {
   private lastCorrectionId = -1;
   private palette: ConceptPalette = resolveConceptColors();
   private labels: LabelBox[] = [];
+  private bounds = { width: 0, height: 0 };
 
   constructor(private readonly canvas: HTMLCanvasElement) {}
 
@@ -112,6 +113,7 @@ export class ArenaRenderer {
       return;
     }
     this.palette = resolveConceptColors();
+    this.bounds = { width: bounds.width, height: bounds.height };
     this.labels = [];
     this.reservedNames.clear();
     context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
@@ -183,8 +185,12 @@ export class ArenaRenderer {
       this.drawPlayer(context, local, transform);
     }
 
+    let newest: CorrectionEffect | null = null;
     for (const effect of this.effects.values()) {
-      this.drawCorrection(context, effect, transform);
+      newest = effect;
+    }
+    for (const effect of this.effects.values()) {
+      this.drawCorrection(context, effect, transform, effect === newest);
     }
   }
 
@@ -314,9 +320,15 @@ export class ArenaRenderer {
       { x: point.x + offset, y: point.y - height / 2, width, height },
       { x: point.x - offset - width, y: point.y - height / 2, width, height },
     ];
+    const clamp = (candidate: LabelBox): LabelBox => ({
+      ...candidate,
+      x: Math.min(Math.max(4, candidate.x), this.bounds.width - candidate.width - 4),
+      y: Math.min(Math.max(4, candidate.y), this.bounds.height - candidate.height - 4),
+    });
+    const clamped = candidates.map(clamp);
     const box =
-      candidates.find((candidate) => !this.labels.some((other) => overlaps(candidate, other))) ??
-      candidates[0]!;
+      clamped.find((candidate) => !this.labels.some((other) => overlaps(candidate, other))) ??
+      clamped[0]!;
     this.labels.push(box);
     return box;
   }
@@ -534,6 +546,7 @@ export class ArenaRenderer {
     context: CanvasRenderingContext2D,
     effect: CorrectionEffect,
     transform: ViewportTransform,
+    withLabel: boolean,
   ): void {
     const { palette } = this;
     const from = toCanvas(effect.record.from, transform);
@@ -579,7 +592,7 @@ export class ArenaRenderer {
       context.restore();
     }
 
-    if (effect.label > 0.01) {
+    if (withLabel && effect.label > 0.01) {
       const text = `−${effect.record.distance.toFixed(0)}px · replayed ${effect.record.replayed}`;
       this.drawLabel(context, text, to, radius + 26, palette.rollback, effect.label);
     }
