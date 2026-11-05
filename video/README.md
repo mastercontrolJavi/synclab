@@ -82,6 +82,7 @@ The score and the sound effects are **original and synthesized locally** by `mus
 
 - `public/audio/music.wav` is the music bed (−14.4 LUFS integrated, −1 dBFS peak).
 - `public/audio/sfx.wav` holds the transitions, impacts, packet blips and the lost-packet crackle.
+- The final mix (music × 0.8 + sfx × 0.55, set in `src/Launch.tsx`) measures −16.2 LUFS integrated with a −1.6 dBTP true peak, leaving headroom for platform re-encoding.
 
 To regenerate both after editing the cue times:
 
