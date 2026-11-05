@@ -86,3 +86,14 @@ Every non-obvious decision in the UI/UX revamp, with its reason. Tie-break rule:
 | D5.5 | The README leads with a real production screenshot and marks a hero GIF slot in an HTML comment, instead of shipping a broken image. | A placeholder image link would render broken on GitHub. |
 | D5.6 | Added the `apps/web/.env.example` that the old README referenced but which didn't exist, and un-ignored it. | Audit #15. |
 | D5.7 | Documented (didn't change) an observed server behavior: under heavy jitter, out-of-order inputs are discarded by the existing sequence guard, so corrections can exceed the drop rate. | It is real netcode behavior worth explaining, and netcode is out of scope. |
+
+## Phase 6: QA
+
+| # | Result |
+|---|---|
+| Q1 | `pnpm typecheck`, `pnpm lint`, `pnpm test` (17 tests, 3 new for the moved dispatch, rate limit and join/ping paths) and `pnpm build` all pass from the repo root. |
+| Q2 | Automated browser pass against the **production build**, 34 checks, all passing: intro → Enter → launch; tour opens once, steps through and is remembered (returning visitors don't see it); `P R I G T K` and clicks toggle the right switches and the subtitles update; WASD still works after clicking a control; presets `1–4` land on exact slider values; `V` switches views; `?` and `H` overlays open and `Esc` closes them; two clients share a room (4 sockets, 2 rooms); a third client gets the room-full state; reduced-motion launch works; at 375 px there is no horizontal scroll, the dock moves into the sheet, the joystick takes over from the autopilot and presets work from the sheet; zero console errors. |
+| Q3 | Cold start: with the Node server down, the lab falls back to the in-browser server immediately (connection refused) or after 4.5 s (connection hanging). The local tick runs at 30 Hz. When the server returns, "Go live" appears and reconnects to the live server. |
+| Q4 | Frame rate: production build, Compare view, every visualization on, Chaos preset: **60.3 fps, worst frame 17 ms**. No effects were cut. |
+| Q5 | Fix found in QA: the dock rendered twice (desktop and sheet) with duplicate element IDs. IDs are now scoped with `useId`. |
+| Q6 | Fix found in QA: the AUTOPILOT badge showed on a pane that wasn't connected. It now shows only when connected. |

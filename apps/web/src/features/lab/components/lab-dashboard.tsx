@@ -278,7 +278,7 @@ export function LabDashboard({ roomId, serverPreference, showIntro }: LabDashboa
   const mainOverlay = paneOverlay(session.status, session.serverMode, session.retry, openFreshRoom);
   const naiveOverlay = paneOverlay(session.naiveStatus, session.serverMode, session.retry, openFreshRoom);
 
-  const autopilotBadge = input.autopilot ? (
+  const autopilotBadge = input.autopilot && connected ? (
     <Tooltip>
       <TooltipTrigger asChild>
         <span
