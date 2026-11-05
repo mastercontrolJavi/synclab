@@ -7,7 +7,7 @@
     "capture": "node capture/capture.mjs",
     "music": "python3 music/compose.py",
     "studio": "remotion studio src/index.ts",
-    "render": "remotion render src/index.ts SyncLabLaunch out/synclab-launch-2560x1440.mp4 --codec=h264 --crf=16 --pixel-format=yuv420p --audio-codec=aac --audio-bitrate=320k --concurrency=4 --x264-preset=slow",
+    "render": "remotion render src/index.ts SyncLabLaunch out/synclab-launch-2560x1440.mp4 --codec=h264 --crf=14 --pixel-format=yuv420p --color-space=bt709 --audio-codec=aac --audio-bitrate=320k --concurrency=4 --x264-preset=slow",
     "still": "remotion still src/index.ts SyncLabLaunch"
   },
   "dependencies": {

@@ -17,9 +17,9 @@ const COMPARE_FROM = 120;
  */
 export function Meet() {
   const frame = useCurrentFrame();
-  const mark = progress(frame, 0, 26, easeOut);
-  const nameOut = progress(frame, LAB_AT - 8, LAB_AT + 6, easeIn);
-  const rise = progress(frame, LAB_AT - 6, LAB_AT + 26, easeOut);
+  const mark = progress(frame, 0, 14, easeOut);
+  const nameOut = progress(frame, LAB_AT - 12, LAB_AT, easeIn);
+  const rise = progress(frame, LAB_AT - 2, LAB_AT + 26, easeOut);
   const exit = progress(frame, 112, 122, easeIn);
 
   const rect = { x: 340, y: mix(620, 360, rise), w: 1880, h: 1057.5 };
@@ -52,8 +52,9 @@ export function Meet() {
           </div>
           <Words
             text="Meet SyncLab."
-            start={3}
-            stagger={5}
+            start={0}
+            stagger={4}
+            duration={16}
             style={{ fontFamily: font.sans, fontSize: 210, fontWeight: 600, letterSpacing: "-0.045em", color: color.text }}
             accent={{ 0: color.textMuted }}
           />

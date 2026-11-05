@@ -17,7 +17,7 @@ const COMPARE_FROM = 330;
 export function Close() {
   const frame = useCurrentFrame();
   const settle = progress(frame, 0, 60, easeOut);
-  const away = progress(frame, ENDCARD_AT - 10, ENDCARD_AT + 10, easeIn);
+  const away = progress(frame, ENDCARD_AT - 14, ENDCARD_AT + 2, easeIn);
   const rect = { x: 400, y: 400, w: 1760, h: 990 };
   const crop = keyedRect(frame, [
     [0, { x: 100, y: 56, w: 1240, h: 697.5 }],
@@ -48,7 +48,7 @@ export function Close() {
           filter: away > 0 ? `blur(${away * 20}px)` : undefined,
         }}
       />
-      <Sequence from={ENDCARD_AT} layout="none">
+      <Sequence from={ENDCARD_AT + 2} layout="none">
         <EndCard />
       </Sequence>
     </AbsoluteFill>
