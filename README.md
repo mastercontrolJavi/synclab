@@ -1,195 +1,132 @@
 # SyncLab
 
-SyncLab is an interactive real-time multiplayer networking laboratory. Two players move through a deliberately tiny tag arena while a dense diagnostics interface makes client-side prediction, server reconciliation, snapshot interpolation, latency, jitter, and packet loss visible. It is an engineering tool first: the arena only gives the networking system something concrete to synchronize.
+**Multiplayer netcode, made visible.** A live lab where the netcode *is* the game. Client-side prediction, server reconciliation and snapshot interpolation run against latency, jitter and packet loss that you control. You can watch them work, side by side.
 
-## Live demo
+<!-- Hero GIF slot: replace the screenshot below with docs/hero.gif, an 8–10 s capture of Compare view switching from Bad Wi-Fi to Mobile 3G. -->
+![SyncLab Compare view: a naive client next to a predicted and reconciled client on a simulated 3G connection](docs/screenshot.png)
 
-The frontend is hosted on Vercel and the realtime server is hosted on Render.
+## What you're looking at
 
-## Try the idea in 30 seconds
+| On screen | What it means |
+|---|---|
+| **Two panes, one network** | Left is a naive client that waits for the server. Right predicts, reconciles and interpolates. Both get identical latency, jitter and loss. |
+| <img src="https://placehold.co/10x10/3fd6ee/3fd6ee.png" alt="" /> **Cyan disc** | You, drawn where *your client* thinks you are. |
+| <img src="https://placehold.co/10x10/b6f04a/b6f04a.png" alt="" /> **Lime ghost** | The last position the **server** confirmed. The server owns the truth. |
+| <img src="https://placehold.co/10x10/f4b740/f4b740.png" alt="" /> **Amber flash + dashed path** | A **reconciliation**: the client snapped to the server's answer and replayed the inputs it hadn't processed yet. The chip shows the distance and the replay count. |
+| <img src="https://placehold.co/10x10/b48cf2/b48cf2.png" alt="" /> **Violet disc** | The other player, **interpolated** 100 ms in the past between two snapshots. |
+| <img src="https://placehold.co/10x10/f0524a/f0524a.png" alt="" /> **Packet lane** | Every message in flight. Dot speed equals the simulated latency. Red bursts are lost packets. |
 
-1. Open the same room link in two tabs and click each arena to focus it.
-2. Select the **200ms** preset and move with WASD or the arrow keys.
-3. Turn **Client prediction** off. Local input now waits for the server round trip.
-4. Turn prediction back on. Movement is immediate, while the cyan authoritative marker remains visible with `?debug=true`.
-5. Select **Jitter**, turn **Remote interpolation** off, and move the other tab. Snapshot unevenness becomes visible.
+Thirty-second tour: open the site and press <kbd>Enter</kbd>. Press <kbd>3</kbd> (Mobile 3G) and drive with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>. Then press <kbd>R</kbd> to turn off reconciliation and watch the right pane drift away from its lime ghost. Press <kbd>?</kbd> for every shortcut.
 
-The three netcode switches alter the implementation path. They do not add a cosmetic effect.
+## Concepts demonstrated
 
-## What this demonstrates
-
-- **Authoritative server:** clients submit sequenced input vectors. Only the server owns positions, collisions, the tag state, and tag counts.
-- **Fixed timestep:** an accumulated monotonic clock advances the server simulation at 30 Hz, with capped catch-up work after an event-loop stall.
-- **Client-side prediction:** the local client applies the same shared movement function immediately instead of waiting for a round trip.
-- **Server reconciliation:** an authoritative snapshot restores local state, acknowledged inputs are removed, and the remaining input buffer is replayed.
-- **Snapshot interpolation:** remote players render 100 ms in the past between timestamped authoritative snapshots.
-- **Network simulation:** a deterministic scheduling layer delays or drops whole application messages in both client → server and server → client directions.
-- **Live diagnostics:** rolling RTT, real server rates, pending inputs, acknowledgements, prediction error, correction count, packet counters, room population, and connection state update four times per second.
+- **Authoritative server.** Clients send sequenced *input directions*, never positions. The server owns movement, collisions and the tag state.
+- **Fixed timestep.** The server runs an accumulator loop at 30 Hz with capped catch-up and sends snapshots at 20 Hz.
+- **Client-side prediction.** The client applies the same shared `applyMovement` function the moment a key is pressed.
+- **Server reconciliation.** Each snapshot acknowledges the last processed input. The client restores the authoritative position, drops acknowledged inputs and replays the rest.
+- **Snapshot interpolation.** Remote players render 100 ms behind the estimated server clock, from an ordered, bounded snapshot buffer.
+- **Network simulation.** Deterministic, seeded delay, jitter and loss are applied to whole application messages in both directions.
+- **Observability.** Live RTT, RFC 3550 inter-arrival jitter, measured loss, tick rate, pending inputs and corrections per second, each with a sparkline.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    K[Keyboard input] --> S[30 Hz input sampler]
-    S --> P{Prediction on?}
-    P -->|yes| L[Shared movement simulation]
-    P -->|no| W[Wait for authority]
-    S --> N1[Outbound network scheduler]
-    N1 -->|delay / drop| WS[WebSocket]
-    WS --> A[Authoritative server]
-    A --> T[30 Hz fixed timestep]
-    T --> B[20 Hz snapshots]
-    B --> N2[Inbound network scheduler]
-    N2 -->|delay / drop| R{Local or remote?}
-    R --> C[Restore + replay pending input]
-    R --> I[100 ms snapshot interpolation]
-    C --> Canvas[Canvas renderer]
-    I --> Canvas
+    subgraph Browser
+      K[Keyboard · joystick · autopilot] --> IN[Input sampler 30 Hz]
+      IN --> PRED[Prediction<br/>shared applyMovement]
+      IN --> NS1[Simulated network<br/>delay · jitter · loss]
+      NS2[Simulated network] --> REC[Reconcile:<br/>restore + replay]
+      NS2 --> INT[Interpolate remote<br/>100 ms behind]
+      PRED & REC & INT --> CANVAS[Canvas renderer<br/>+ ghosts, trails, packet lane]
+    end
+    NS1 -->|WebSocket| SRV
+    SRV -->|snapshot + ack| NS2
+    subgraph SRV[Authoritative server · packages/shared]
+      Q[Validate + queue] --> SIM[30 Hz fixed step] --> SNAP[20 Hz snapshots]
+    end
 ```
 
-```mermaid
-flowchart TB
-    subgraph apps/web
-      UI[React controls and throttled metrics]
-      GC[GameClient runtime]
-      NS[Network simulator]
-      CV[Canvas renderer]
-    end
-    subgraph apps/server
-      HTTP[HTTP health endpoint]
-      RM[Room manager]
-      LOOP[Fixed timestep loop]
-      WSS[ws server]
-    end
-    subgraph packages/shared
-      PROTO[Protocol contracts + guards]
-      SIM[Movement + reconciliation + interpolation]
-    end
-    UI --> GC
-    GC --> NS --> WSS
-    WSS --> RM --> LOOP
-    GC --> CV
-    GC --> SIM
-    LOOP --> SIM
-    GC --> PROTO
-    WSS --> PROTO
-```
-
-### Protocol flow
-
-Clients never submit coordinates.
-
-```text
-INPUT #107 → INPUT #108 → INPUT #109
-        simulated network
-                ↓
-server validates, queues, and applies fixed-delta movement
-                ↓
-SNAPSHOT #9182 + ACK #108
-                ↓
-client removes ≤108 and replays #109 from server position
-```
-
-## Why prediction exists
-
-At 200 ms RTT, a client that waits for the server cannot show its own movement for roughly a fifth of a second. That delay feels disconnected from the key press. Prediction runs the agreed movement rule locally at input time, so the avatar responds immediately while the same input travels to the authoritative server.
-
-## Why reconciliation exists
-
-Prediction is an estimate. Packet loss, delayed inputs, boundaries, and interactions with another player can make the estimate differ from the server. Snapshots acknowledge the last processed input. SyncLab restores the server position, discards acknowledged commands, and replays only commands the server has not seen yet. Small render-space corrections are eased without changing the corrected simulation state.
-
-## Why interpolation exists
-
-Remote clients cannot safely predict another player's future input. Rendering each snapshot as it arrives exposes uneven delivery timing as visible stutter. SyncLab keeps a bounded, ordered snapshot buffer and renders the peer 100 ms behind server time, interpolating between known states instead of guessing ahead.
-
-## Repository structure
+The authoritative server (`RoomManager`, `FixedTimestepLoop` and message dispatch) lives in `packages/shared/src/server` behind a three-field socket interface. The **Node process** (`apps/server`) runs it behind `ws`. If the free-tier server is asleep, the **web app runs the identical code in the tab** behind a loopback socket, so the demo never shows a dead canvas. The same simulated network sits in front of both. The UI tells you which one you're on, and offers "Go live" once the remote server wakes.
 
 ```text
 apps/
-  web/       Next.js App Router UI, canvas, transport, prediction, diagnostics
-  server/    persistent Node.js + ws authoritative server
+  web/                      Next.js 16 App Router UI
+    src/features/lab/
+      game-client.ts        prediction, reconciliation, interpolation, read-only telemetry
+      network-simulator.ts  seeded delay/jitter/loss transport
+      local-server.ts       loopback socket into the shared server (cold-start fallback)
+      renderer.ts           arena canvas: entities, ghosts, correction effects
+      packet-lane-renderer.ts
+      use-lab-session.ts    client lifecycle + live/local fallback (external store)
+      use-lab-input.ts      keyboard, joystick, demo autopilot
+      components/           dock, panes, telemetry, tour, intro, overlays
+    src/lib/                design tokens bridge (concepts.ts), motion tokens (motion.ts)
+  server/                   Node + ws host for the shared authoritative server
 packages/
-  shared/    protocol types, runtime guards, constants, and simulation math
-docs/
-  case-study.md
+  shared/                   protocol, guards, constants, simulation, reconciliation,
+                            interpolation, and the authoritative server core
 ```
+
+Rendering stays outside React. Each pane's `requestAnimationFrame` loop reads the `GameClient` directly. React only receives 4 Hz metrics. GSAP animates UI and overlay effects and never animates game entities.
 
 ## Running locally
 
-Requirements: Node.js 20.9 or newer and pnpm 10 or newer.
+Requirements: Node.js 20.9+ and pnpm 10+.
 
 ```bash
 pnpm install
+```
+
+```bash
 cp apps/web/.env.example apps/web/.env.local
+```
+
+```bash
 pnpm dev
 ```
 
-On Windows PowerShell, the environment copy command is:
+Open <http://localhost:3000>. The WebSocket server listens on `ws://localhost:8080`, with a health check at <http://localhost:8080/health>.
 
-```powershell
-Copy-Item apps/web/.env.example apps/web/.env.local
-```
+URL options: `?room=<id>` joins a room (open the same link in two tabs to play a real peer), `?server=local` or `?server=live` pins the server, and `?intro=0` skips the landing.
 
-Open [http://localhost:3000](http://localhost:3000). The WebSocket server listens on `ws://localhost:8080`, and its health endpoint is [http://localhost:8080/health](http://localhost:8080/health).
-
-Useful checks:
+Checks:
 
 ```bash
-pnpm typecheck
-pnpm lint
-pnpm test
-pnpm build
+pnpm typecheck && pnpm lint && pnpm test && pnpm build
 ```
 
-Add `?debug=true` to a room URL to display authoritative, predicted, rendered, and remote snapshot markers.
+## Design decisions
+
+The full log, with reasons, is in [DECISIONS.md](DECISIONS.md). The audit that motivated it is in [AUDIT.md](AUDIT.md). The highlights:
+
+- **Compare view by default.** The naive vs predicted comparison is the whole argument, so it's the first thing on screen, under the same network.
+- **One color per concept, everywhere.** Cyan means you (predicted), lime the server, violet the remote player, amber a correction, red a drop. CSS variables are the single source, and the canvas reads them at runtime.
+- **Measured next to configured.** Telemetry shows what was *observed* (for example RFC 3550 jitter) beside the slider value, which teaches that sliders are causes and cards are effects.
+- **The demo drives itself.** An autopilot moves the player until you press a key, so a viewer who never touches the keyboard still sees prediction gaps and corrections.
+- **Never a dead canvas.** The same authoritative code can run in the tab when the free-tier server is cold.
+- **Motion with a budget.** GSAP is used for the intro, reveals, overlays, tweened numbers, preset glides and correction flashes, animating transforms, opacity and SVG attributes only. The production build holds 60 fps with every visualization on, and `prefers-reduced-motion` falls back to fades.
+- **The netcode is untouched.** Tick rates, prediction, reconciliation, interpolation and the message format are unchanged. The visualizations read state and never steer it.
 
 ## Deployment
 
-### Render realtime server (free tier)
+**Realtime server (Render, free tier).** Create a **New → Blueprint** from this repo. `render.yaml` builds `packages/shared` and `apps/server` and starts the server. Confirm that `/health` returns `{ "ok": true }`. The free service sleeps after 15 idle minutes. SyncLab falls back to the in-browser server and offers "Go live" once the service wakes.
 
-1. In Render, select **New → Blueprint** and connect this repository. Render reads the root `render.yaml` file and creates the free `synclab-realtime-javiertpga` web service.
-2. It installs the frozen workspace, builds the shared package and server, and starts `@synclab/server`. Render supplies `PORT`; no custom value is required.
-3. Confirm `https://synclab-realtime-javiertpga.onrender.com/health` returns `{ "ok": true, ... }`.
-4. The free service sleeps after 15 minutes without inbound traffic. Its first connection can take about a minute to wake it; SyncLab retries long enough to recover automatically.
-
-### Vercel client
-
-1. Import the same repository into Vercel with the repository root as the project root.
-2. `vercel.json` builds the shared package and the web workspace, then serves `apps/web/.next`.
-3. The Render URL is the default connection target. To use a different server, set `NEXT_PUBLIC_WS_URL` to its `wss://` URL in Production, Preview, and Development as appropriate, then redeploy (public Next.js environment values are compiled into the browser bundle).
-4. Deploy, then open two tabs with the same `?room=` value.
-
-No secrets are required. The public URL is intentionally a browser-visible environment value.
-
-## Technical decisions
-
-- **WebSockets:** bidirectional, persistent delivery makes protocol flow easy to observe without polling. The server is a normal persistent process, not a serverless handler.
-- **Authoritative server:** positions from clients would make teleporting trivial and would move collisions and tag outcomes outside a single source of truth.
-- **30 Hz simulation:** frequent enough for this movement lab while leaving timing and correction behavior legible. An accumulator prevents permanent slow motion after timer drift.
-- **20 Hz snapshots:** separates simulation fidelity from bandwidth and gives interpolation meaningful gaps to bridge.
-- **Input commands represent fixed steps:** each accepted command advances the shared movement rule by one fixed delta. Missing commands therefore create real divergence for reconciliation to correct.
-- **Interpolation instead of remote prediction:** the client knows its own current keys but not a peer's next keys. Rendering slightly in the past uses known data and avoids speculative remote behavior.
-- **Simulation and render state differ:** authoritative and predicted positions remain exact; a decaying render offset softens only small corrections.
-- **Canvas outside React:** `requestAnimationFrame` reads the mutable game runtime directly. React receives metrics and bounded event history at 4 Hz, avoiding packet-rate or frame-rate component rerenders.
-- **Small dependency surface:** `ws` is the only server runtime dependency. There is no database, authentication layer, game engine, or state-management library.
+**Web (Vercel).** Import the repository with the root as the project root, and `vercel.json` handles the build. Optionally set `NEXT_PUBLIC_WS_URL` (a `wss://` URL) and `NEXT_PUBLIC_SITE_URL` (for absolute Open Graph URLs), then redeploy.
 
 ## Robustness
 
-- Incoming messages use discriminated runtime guards and reject malformed, non-finite, out-of-range, or unsafe sequence values.
-- WebSocket payloads are capped at 16 KiB and connections are capped at 120 messages per second.
-- Input queues, pending input history, snapshots, and network events are bounded.
-- Reconnect uses bounded exponential backoff and stops after six failed attempts until the user retries.
-- A room is removed as soon as its final player disconnects.
-- Snapshot insertion handles out-of-order delivery and ignores duplicate ticks.
+- Runtime guards reject malformed, non-finite, out-of-range or unsafe-sequence messages. Payloads are capped at 16 KiB and connections at 120 messages per second.
+- Input queues, pending input history, snapshot buffers, packet telemetry and correction records are all bounded.
+- Reconnects use bounded exponential backoff and then fall back to the in-browser server.
 
 ## Limitations
 
-- WebSockets run over TCP. Real-time games commonly use UDP-based transports to avoid head-of-line blocking; SyncLab simulates application-message delay and loss for education, not TCP packet behavior.
-- The room process is in-memory and single-instance. It does not coordinate rooms across regions or server replicas.
-- There is no lag compensation for historical hit detection because the only interaction is a simple proximity tag.
-- Inputs are fixed-step commands rather than a production game's richer input-state stream with redundancy and compression.
-- The deterministic simulator is seeded per room, but it is not a record/replay system and does not promise identical schedules across different browser sessions.
+- WebSockets run over TCP. SyncLab simulates application-message delay and loss for teaching. It doesn't model TCP retransmission or head-of-line blocking.
+- Under heavy jitter, inputs can arrive out of order, and the server discards stale sequences. That is why corrections can outnumber dropped packets on Mobile 3G and Chaos.
+- Rooms are in-memory on a single instance. The in-browser server is per-tab, so cross-device play needs the live server.
+- There is no lag compensation for hit detection; the only interaction is a proximity tag.
 
 ## Case study
 
-The longer technical narrative is in [docs/case-study.md](docs/case-study.md).
+The longer write-up is [docs/case-study.md](docs/case-study.md).

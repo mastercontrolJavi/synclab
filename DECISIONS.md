@@ -74,3 +74,15 @@ Every non-obvious decision in the UI/UX revamp, with its reason. Tie-break rule:
 | D4.5 | The intro sits over the *running* lab (autopilot on, 90% scrim), so the hero background is live netcode. `?intro=0` skips it. | The first frame proves the product works. It also gives the free-tier server time to wake while the viewer reads. |
 | D4.6 | The tour waits for the launch reveal (~1.7 s, or 0.3 s with reduced motion) and a live connection. | It started mid-reveal and pointed at panels that weren't visible yet. |
 | D4.7 | Performance: the production build holds **60 fps with all visualizations on under the Chaos preset** (headless Chromium, software raster). Dev mode measured ~48 fps in every configuration, including with all visualizations off, so the drop is dev React overhead, not the effects. | Measured, not assumed. Nothing had to be cut for clarity. |
+
+## Phase 5: Portfolio framing
+
+| # | Decision | Why |
+|---|---|---|
+| D5.1 | The landing is an intro *state* over the running lab, not a separate route: title, a one-line pitch, a "Launch lab ↵" CTA, three "What you're seeing" bullets (each colored by its concept), a server status line, a source link and a byline. | The landing doubles as the cold-start warm-up. One URL works for both a recruiter and a shared room link. |
+| D5.2 | The OG image is generated with `next/og` at build time and shows the brand plus a stylized naive vs predicted pair. Colors are hex mirrors of the tokens, because the OG renderer has no oklch. Metadata includes `metadataBase`, Open Graph, `summary_large_image`, `themeColor` and keywords. | The link must preview well when shared. |
+| D5.3 | The app icon was redrawn as the logo mark: a solid cyan "you" one step ahead of a dashed lime "server" ghost. | The mark explains the product. |
+| D5.4 | The footer has a byline, a GitHub link and a stack badge row (Next.js 16, React 19, TypeScript, Canvas 2D, WebSockets, GSAP, Tailwind v4). | Brief. |
+| D5.5 | The README leads with a real production screenshot and marks a hero GIF slot in an HTML comment, instead of shipping a broken image. | A placeholder image link would render broken on GitHub. |
+| D5.6 | Added the `apps/web/.env.example` that the old README referenced but which didn't exist, and un-ignored it. | Audit #15. |
+| D5.7 | Documented (didn't change) an observed server behavior: under heavy jitter, out-of-order inputs are discarded by the existing sequence guard, so corrections can exceed the drop rate. | It is real netcode behavior worth explaining, and netcode is out of scope. |

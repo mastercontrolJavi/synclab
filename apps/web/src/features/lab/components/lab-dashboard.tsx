@@ -22,6 +22,7 @@ import { IntroOverlay } from "./intro-overlay";
 import { LabPane, type PaneOverlay } from "./lab-pane";
 import { Legend } from "./legend";
 import { ShortcutsOverlay } from "./shortcuts-overlay";
+import { SiteFooter } from "./site-footer";
 import { TelemetryPanel } from "./telemetry-panel";
 import { TopBar } from "./top-bar";
 import { TouchJoystick } from "./touch-joystick";
@@ -311,7 +312,7 @@ export function LabDashboard({ roomId, serverPreference, showIntro }: LabDashboa
         onOpenShortcuts={() => setShortcutsOpen(true)}
       />
 
-      <main className="mx-auto grid w-full max-w-[1680px] flex-1 gap-3 p-3 pb-36 lg:grid-cols-[minmax(0,1fr)_320px] lg:pb-3">
+      <main className="mx-auto grid w-full max-w-[1680px] flex-1 gap-3 p-3 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="flex min-w-0 flex-col gap-3">
           <div
             data-tour="panes"
@@ -367,6 +368,8 @@ export function LabDashboard({ roomId, serverPreference, showIntro }: LabDashboa
           <ControlDock controls={controls} />
         </aside>
       </main>
+
+      <SiteFooter />
 
       {/* Mobile: joystick + controls sheet */}
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[40] flex items-end justify-between p-4 lg:hidden">
