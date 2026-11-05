@@ -2,11 +2,12 @@
 
 import { SlidersHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
 import { MotionOverlay } from "@/components/ui/motion-overlay";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { DURATION, EASE, gsap, STAGGER, useGSAP } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 import { NETWORK_PRESETS } from "../presets";
@@ -17,6 +18,7 @@ import { NAIVE_NETCODE, useLabSession, type ServerMode, type ServerPreference } 
 import { ControlDock } from "./control-dock";
 import { GuidedTour } from "./guided-tour";
 import { HowItWorks } from "./how-it-works";
+import { IntroOverlay } from "./intro-overlay";
 import { LabPane, type PaneOverlay } from "./lab-pane";
 import { Legend } from "./legend";
 import { ShortcutsOverlay } from "./shortcuts-overlay";
@@ -123,15 +125,26 @@ function isTypingTarget(target: EventTarget | null): boolean {
 interface LabDashboardProps {
   roomId: string;
   serverPreference: ServerPreference;
+  showIntro: boolean;
 }
 
-export function LabDashboard({ roomId, serverPreference }: LabDashboardProps) {
+function introServerLine(status: ConnectionState, serverMode: ServerMode): string {
+  if (status !== "connected") {
+    return serverMode === "live" ? "Waking the live server…" : "Starting the in-browser server…";
+  }
+  return serverMode === "live" ? "Live server connected" : "Running on the in-browser server";
+}
+
+export function LabDashboard({ roomId, serverPreference, showIntro }: LabDashboardProps) {
   const controls = useLabControls();
   const { settings, viz, view } = controls;
   const reducedMotion = useReducedMotion();
   const split = view === "split";
   const session = useLabSession({ roomId, split, serverPreference, settings });
-  const input = useLabInput([session.main, session.naive], true);
+  const [launched, setLaunched] = useState(!showIntro);
+  const [settled, setSettled] = useState(!showIntro);
+  const input = useLabInput([session.main, session.naive], launched);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const [copied, setCopied] = useState(false);
   const [howOpen, setHowOpen] = useState(false);
@@ -140,9 +153,9 @@ export function LabDashboard({ roomId, serverPreference }: LabDashboardProps) {
   const [tourOpen, setTourOpen] = useState(false);
   const [tourChecked, setTourChecked] = useState(false);
 
-  // First run: start the tour once the lab is actually live.
+  // First run: start the tour once the lab is launched and actually live.
   const connected = session.status === "connected";
-  if (connected && !tourChecked) {
+  if (settled && connected && !tourChecked) {
     setTourChecked(true);
     if (typeof window !== "undefined" && !readTourDone()) {
       setTourOpen(true);
@@ -169,7 +182,44 @@ export function LabDashboard({ roomId, serverPreference }: LabDashboardProps) {
     router.push("/");
   }, [router]);
 
-  const anyOverlayOpen = howOpen || shortcutsOpen || sheetOpen || tourOpen;
+  const launch = useCallback(() => {
+    setLaunched(true);
+    // Let the launch reveal finish before anything (like the tour) asks for attention.
+    window.setTimeout(() => setSettled(true), reducedMotion ? 300 : 1_700);
+  }, [reducedMotion]);
+
+  // Launch: the lab settles into place in reading order.
+  useGSAP(
+    () => {
+      if (!launched || !showIntro) {
+        return;
+      }
+      const mm = gsap.matchMedia();
+      mm.add(
+        {
+          reduce: "(prefers-reduced-motion: reduce)",
+          full: "(prefers-reduced-motion: no-preference)",
+        },
+        (context) => {
+          if (context.conditions?.reduce) {
+            gsap.from("[data-reveal-root]", { opacity: 0, duration: DURATION.slow });
+            return;
+          }
+          const timeline = gsap.timeline({ defaults: { ease: EASE.out }, delay: 0.15 });
+          timeline
+            .from("[data-reveal-header]", { y: -12, opacity: 0, duration: DURATION.slow })
+            .from("[data-pane]", { y: 24, opacity: 0, scale: 0.985, duration: DURATION.xslow, stagger: STAGGER.loose }, "-=0.2")
+            .from("aside [data-reveal]", { x: 12, opacity: 0, duration: DURATION.slow, stagger: STAGGER.tight }, "-=0.6")
+            .from("[data-tour='legend'] [data-reveal]", { y: 6, opacity: 0, duration: DURATION.slow, stagger: STAGGER.tight }, "-=0.5")
+            .from("[data-tour='telemetry'] [data-reveal]", { y: 10, opacity: 0, duration: DURATION.slow, stagger: STAGGER.base }, "-=0.45");
+        },
+      );
+      return () => mm.revert();
+    },
+    { dependencies: [launched], scope: rootRef },
+  );
+
+  const anyOverlayOpen = !launched || howOpen || shortcutsOpen || sheetOpen || tourOpen;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -245,7 +295,7 @@ export function LabDashboard({ roomId, serverPreference }: LabDashboardProps) {
   ) : null;
 
   return (
-    <div className="flex min-h-dvh flex-col bg-background bg-grid text-foreground">
+    <div ref={rootRef} data-reveal-root className="flex min-h-dvh flex-col bg-background bg-grid text-foreground">
       <TopBar
         view={view}
         onViewChange={controls.setView}
@@ -341,6 +391,13 @@ export function LabDashboard({ roomId, serverPreference }: LabDashboardProps) {
         <ControlDock controls={controls} />
       </MotionOverlay>
 
+      <IntroOverlay
+        open={!launched}
+        serverLine={introServerLine(session.status, session.serverMode)}
+        serverReady={connected}
+        onLaunch={launch}
+        onHowItWorks={() => setHowOpen(true)}
+      />
       <HowItWorks open={howOpen} onClose={() => setHowOpen(false)} />
       <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <GuidedTour open={tourOpen} onClose={closeTour} />

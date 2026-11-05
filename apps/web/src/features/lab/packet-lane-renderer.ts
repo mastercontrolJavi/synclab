@@ -163,11 +163,14 @@ function dot(
   color: string,
   alpha: number,
 ): void {
+  // A translucent halo instead of shadowBlur: same glow, a fraction of the cost.
   context.save();
-  context.globalAlpha = Math.max(0, alpha);
   context.fillStyle = color;
-  context.shadowBlur = 8;
-  context.shadowColor = color;
+  context.globalAlpha = Math.max(0, alpha) * 0.22;
+  context.beginPath();
+  context.arc(x, y, radius * 2.4, 0, Math.PI * 2);
+  context.fill();
+  context.globalAlpha = Math.max(0, alpha);
   context.beginPath();
   context.arc(x, y, radius, 0, Math.PI * 2);
   context.fill();

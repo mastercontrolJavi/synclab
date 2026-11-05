@@ -24,5 +24,11 @@ export default async function Home({ searchParams }: HomeProps) {
     redirect(`/?room=${roomId}${serverPreference === "auto" ? "" : `&server=${serverPreference}`}`);
   }
 
-  return <LabDashboard roomId={requestedRoom} serverPreference={serverPreference} />;
+  return (
+    <LabDashboard
+      roomId={requestedRoom}
+      serverPreference={serverPreference}
+      showIntro={query.intro !== "0"}
+    />
+  );
 }

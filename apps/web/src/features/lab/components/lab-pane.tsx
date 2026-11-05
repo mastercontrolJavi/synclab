@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 
+import { DURATION, EASE, gsap, useGSAP } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 import type { GameClient } from "../game-client";
@@ -62,6 +63,25 @@ export function LabPane({
   const arenaRef = useRef<HTMLCanvasElement>(null);
   const laneRef = useRef<HTMLCanvasElement>(null);
   const optionsRef = useRef({ netcode, visuals, reducedMotion });
+  const pulseRef = useRef<HTMLDivElement>(null);
+  const netcodeKey = `${netcode.prediction}-${netcode.reconciliation}-${netcode.interpolation}`;
+  const lastNetcodeKey = useRef(netcodeKey);
+
+  // A brief accent pulse when this pane's netcode changes, so the cause is obvious.
+  useGSAP(
+    () => {
+      if (lastNetcodeKey.current === netcodeKey || !pulseRef.current) {
+        return;
+      }
+      lastNetcodeKey.current = netcodeKey;
+      gsap.fromTo(
+        pulseRef.current,
+        { opacity: reducedMotion ? 0.6 : 1 },
+        { opacity: 0, duration: reducedMotion ? DURATION.slow : DURATION.xslow, ease: EASE.in },
+      );
+    },
+    { dependencies: [netcodeKey, reducedMotion] },
+  );
 
   useLayoutEffect(() => {
     optionsRef.current = { netcode, visuals, reducedMotion };
@@ -112,9 +132,15 @@ export function LabPane({
     <section
       data-pane={tone}
       data-tour={tourId}
-      className={cn("flex min-w-0 flex-col overflow-hidden rounded-xl border border-line bg-surface-1 shadow-panel", className)}
+      className={cn("relative flex min-w-0 flex-col overflow-hidden rounded-xl border border-line bg-surface-1 shadow-panel", className)}
       aria-label={`${title} arena`}
     >
+      <div
+        ref={pulseRef}
+        className="pointer-events-none absolute inset-0 z-10 rounded-xl opacity-0"
+        style={{ boxShadow: "inset 0 0 0 1.5px var(--accent), inset 0 0 40px -8px oklch(0.84 0.14 205 / 0.5)" }}
+        aria-hidden="true"
+      />
       <header className="flex items-start justify-between gap-3 border-b border-line px-3.5 py-2.5">
         <div className="min-w-0">
           <div className="flex items-center gap-2">

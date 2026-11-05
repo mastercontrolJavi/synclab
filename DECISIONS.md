@@ -62,3 +62,15 @@ Every non-obvious decision in the UI/UX revamp, with its reason. Tie-break rule:
 | D3.13 | Assumptions: author name "Javier" (from the account handle) and default site URL `https://synclab.vercel.app`, overridable with `NEXT_PUBLIC_SITE_URL`. Both live in `src/lib/site.ts`. | Brief: don't ask, state assumptions. Edit one file to change them. |
 | D3.14 | Under heavy correction rates, only the newest correction gets a text chip, there are at most 4 live effects, and labels are clamped inside the canvas. | Chaos preset stacked 4 chips and pushed one past the edge. |
 | D3.15 | Removed the `?debug=true` mode. Ghosts are on by default and can be toggled with `G`. | The debug overlay was the most important visualization and it was hidden. |
+
+## Phase 4: Motion (GSAP)
+
+| # | Decision | Why |
+|---|---|---|
+| D4.1 | GSAP drives: the intro timeline (mark pop, per-character title rise, pitch, staggered bullets, CTAs), the launch reveal (header, panes, dock rows, legend, telemetry cards in reading order), overlay enter and exit, tour spotlight and card, preset glides, tweened telemetry numbers, the netcode-change pane pulse, joystick spring-back, the How-it-works MotionPath loop, and correction flash, ring and trail scalars. | Everything in the brief's list. |
+| D4.2 | **GSAP never moves a game entity.** Players come only from `GameClient.getRenderFrame()` on the rAF loop. Correction effects tween only their own `flash/ring/trail/label` numbers. | Hard rule. |
+| D4.3 | Only transform, opacity and SVG attributes are animated. The tour spotlight is an SVG mask plus a stroked rect, not a resized div. Packet dots use a translucent halo instead of `shadowBlur`. | 60 fps budget, no layout thrash. |
+| D4.4 | Reduced motion is handled with `gsap.matchMedia()` and `prefersReducedMotion()`. Under `reduce`, intro, launch and overlays become plain fades. Correction rings don't expand (a short fade only). Packet drops don't fall. Number tweens snap. The global CSS rule clamps CSS animations to 1 ms. | Brief. |
+| D4.5 | The intro sits over the *running* lab (autopilot on, 90% scrim), so the hero background is live netcode. `?intro=0` skips it. | The first frame proves the product works. It also gives the free-tier server time to wake while the viewer reads. |
+| D4.6 | The tour waits for the launch reveal (~1.7 s, or 0.3 s with reduced motion) and a live connection. | It started mid-reveal and pointed at panels that weren't visible yet. |
+| D4.7 | Performance: the production build holds **60 fps with all visualizations on under the Chaos preset** (headless Chromium, software raster). Dev mode measured ~48 fps in every configuration, including with all visualizations off, so the drop is dev React overhead, not the effects. | Measured, not assumed. Nothing had to be cut for clarity. |

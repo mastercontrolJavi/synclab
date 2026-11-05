@@ -58,7 +58,10 @@ export interface LabInput {
  * joystick, and a demo autopilot that runs until the viewer takes over.
  * Inputs are just directions; the netcode path is unchanged.
  */
-export function useLabInput(clients: readonly (GameClient | null)[], enabled: boolean): LabInput {
+export function useLabInput(
+  clients: readonly (GameClient | null)[],
+  keyboardEnabled: boolean,
+): LabInput {
   const pressed = useRef(new Set<string>());
   const analog = useRef<[number, number]>([0, 0]);
   const lastHumanInput = useRef(Number.NEGATIVE_INFINITY);
@@ -94,9 +97,8 @@ export function useLabInput(clients: readonly (GameClient | null)[], enabled: bo
   }, [apply]);
 
   useEffect(() => {
-    if (!enabled) {
+    if (!keyboardEnabled) {
       pressed.current.clear();
-      apply(0, 0);
       return;
     }
     const onKeyDown = (event: KeyboardEvent) => {
@@ -135,13 +137,11 @@ export function useLabInput(clients: readonly (GameClient | null)[], enabled: bo
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
     };
-  }, [enabled, apply, applyHuman]);
+  }, [keyboardEnabled, apply, applyHuman]);
 
   // Autopilot: steer the predicted player through waypoints while idle.
+  // It runs even behind the intro, so the first thing a viewer sees is alive.
   useEffect(() => {
-    if (!enabled) {
-      return;
-    }
     const timer = window.setInterval(() => {
       const humanActive =
         pressed.current.size > 0 ||
@@ -168,7 +168,7 @@ export function useLabInput(clients: readonly (GameClient | null)[], enabled: bo
       apply(dx / length, dy / length);
     }, AUTOPILOT_TICK_MS);
     return () => window.clearInterval(timer);
-  }, [enabled, apply]);
+  }, [apply]);
 
   const setAnalog = useCallback(
     (x: number, y: number) => {
