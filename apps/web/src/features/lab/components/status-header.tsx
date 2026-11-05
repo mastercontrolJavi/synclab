@@ -60,12 +60,12 @@ export function StatusHeader({
           <span
             className={cn(
               "size-1.5 rounded-full",
-              status === "connected" && "bg-emerald-400",
+              status === "connected" && "bg-server",
               (status === "connecting" || status === "reconnecting") &&
-                "animate-pulse bg-amber-300",
+                "animate-pulse bg-rollback",
               (status === "disconnected" || status === "server_unavailable") &&
-                "bg-red-400",
-              status === "room_full" && "bg-violet-400",
+                "bg-dropped",
+              status === "room_full" && "bg-remote",
             )}
           />
           <span className="text-[11px] text-muted-foreground">

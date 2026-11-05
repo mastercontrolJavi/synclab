@@ -11,11 +11,11 @@ interface NetworkFlowProps {
 }
 
 const EVENT_STYLES: Record<NetworkEvent["type"], string> = {
-  input: "text-emerald-300",
-  snapshot: "text-violet-300",
-  ack: "text-sky-300",
-  reconcile: "text-amber-300",
-  drop: "text-red-300",
+  input: "text-predicted",
+  snapshot: "text-server",
+  ack: "text-server",
+  reconcile: "text-rollback",
+  drop: "text-dropped",
   system: "text-zinc-300",
 };
 

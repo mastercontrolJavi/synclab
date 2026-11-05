@@ -14,3 +14,15 @@ Every non-obvious decision in the UI/UX revamp, with its reason. Tie-break rule:
 | D0.6 | Add a **demo autopilot**: scripted local input drives the player until the viewer presses a movement key. Pressing any key hands control over immediately. | Many viewers won't press a key in the first 10 seconds. Without movement there is no prediction gap, no reconciliation and nothing to see. The autopilot generates input only; netcode is untouched. |
 | D0.7 | Default lab conditions become the "Bad Wi-Fi" preset (150 ms RTT, 30 ms jitter, 3% loss) and split view is the default on desktop. | At the old default (60 ms, 0% loss) naive and predicted look identical, so the lesson is invisible. |
 | D0.8 | Movement keys are captured globally, not only while the arena is focused. Arrow keys still go to a focused slider. WASD always moves. | Fixes audit #5: clicking a control used to break movement silently. |
+
+## Phase 1: Design system
+
+| # | Decision | Why |
+|---|---|---|
+| D1.1 | Direction: dark "mission control". Near-black blue-cast surfaces (`--surface-0..3`), a 4px spacing grid, 6/8/12/16 px radii, Geist for UI and Geist Mono for data. | This is the default the brief asked for. Geist was already installed, so no new font weight ships. |
+| D1.2 | The single accent is **cyan**, and it doubles as the "you / predicted" color. | The accent marks what *you* control, so the UI and the canvas agree on what is yours. |
+| D1.3 | Concept colors: predicted = cyan, server-authoritative = lime, interpolated remote = violet, rollback/correction = amber, dropped = red, control traffic = grey. Input packets use the predicted color (they come from you). Snapshot packets use the server color. | Each concept gets exactly one hue across canvas, legend, sparklines and tooltips. Amber now means only "correction". The old IT ring (also amber) becomes neutral white. |
+| D1.4 | CSS variables are the single source of truth. The canvas reads them through `resolveConceptColors()` (`src/lib/concepts.ts`). Tailwind exposes them as `text-predicted`, `bg-server` and so on. | No hex duplication between CSS and canvas. |
+| D1.5 | Motion tokens live in `src/lib/motion.ts` (`DURATION`, `EASE` names mapped to GSAP eases, `STAGGER`), with a CSS mirror in `--dur-*` and `--ease-*`. Plugins registered: `useGSAP`, `MotionPathPlugin`. | Named eases keep every animation consistent. |
+| D1.6 | Typecheck runs `next typegen` before `tsc`. | `LayoutProps` is a generated global type, and a fresh clone failed `pnpm typecheck` (audit #15). |
+| D1.7 | Installed `gsap` and `@gsap/react` and nothing else. No chart library. | Brief: no heavy chart libraries. Sparklines will be hand-drawn SVG. |

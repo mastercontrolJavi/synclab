@@ -5,6 +5,8 @@ import {
   type Vector2,
 } from "@synclab/shared";
 
+import { resolveConceptColors } from "@/lib/concepts";
+
 import type { RenderFrame, RenderPlayer } from "./types";
 
 interface ViewportTransform {
@@ -65,19 +67,20 @@ function drawPlayer(
 ): void {
   const point = toCanvas(player, transform);
   const radius = PLAYER_RADIUS * transform.scale;
-  const color = player.isLocal ? "#6ee7b7" : "#a78bfa";
+  const palette = resolveConceptColors();
+  const color = player.isLocal ? palette.predicted : palette.remote;
 
   if (player.isIt) {
     context.beginPath();
     context.arc(point.x, point.y, radius + 7, 0, Math.PI * 2);
-    context.strokeStyle = "rgba(251, 191, 36, 0.78)";
+    context.strokeStyle = "rgba(255, 255, 255, 0.7)";
     context.lineWidth = 2;
     context.stroke();
   }
 
   context.save();
-  context.shadowBlur = 16;
-  context.shadowColor = `${color}35`;
+  context.shadowBlur = 14;
+  context.shadowColor = color;
   context.beginPath();
   context.arc(point.x, point.y, radius, 0, Math.PI * 2);
   context.fillStyle = color;
@@ -98,7 +101,7 @@ function drawPlayer(
 
   if (player.isIt) {
     context.font = "600 9px 'Geist Mono', ui-monospace, monospace";
-    context.fillStyle = "#fbbf24";
+    context.fillStyle = "rgba(255, 255, 255, 0.85)";
     context.fillText("IT", point.x, point.y + radius + 21);
   }
 }
@@ -169,16 +172,16 @@ export function renderArena(
 
   if (debug) {
     if (frame.localAuthoritative) {
-      drawMarker(context, frame.localAuthoritative, transform, "#22d3ee", "AUTH", 8);
+      drawMarker(context, frame.localAuthoritative, transform, resolveConceptColors().server, "AUTH", 8);
     }
     if (frame.localPredicted) {
-      drawMarker(context, frame.localPredicted, transform, "#f472b6", "PRED", 11);
+      drawMarker(context, frame.localPredicted, transform, resolveConceptColors().predicted, "PRED", 11);
     }
     if (frame.localRendered) {
       drawMarker(context, frame.localRendered, transform, "#f4f4f5", "RENDER", 14);
     }
     for (const position of frame.remoteSnapshotPositions) {
-      drawMarker(context, position, transform, "#a78bfa", "SNAP", 7);
+      drawMarker(context, position, transform, resolveConceptColors().remote, "SNAP", 7);
     }
   }
 }

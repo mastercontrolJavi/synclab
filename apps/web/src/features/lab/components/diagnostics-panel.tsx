@@ -25,8 +25,8 @@ function MetricRow({ label, value, accent = "neutral" }: MetricRowProps) {
         className={cn(
           "shrink-0 font-mono text-[10px] tabular-nums",
           accent === "neutral" && "text-foreground",
-          accent === "positive" && "text-emerald-300",
-          accent === "warning" && "text-amber-300",
+          accent === "positive" && "text-server",
+          accent === "warning" && "text-rollback",
         )}
       >
         {value}
@@ -46,7 +46,7 @@ export function DiagnosticsPanel({ metrics, settings }: DiagnosticsPanelProps) {
           <h2 className="text-xs font-medium">Diagnostics</h2>
         </div>
         <span className="flex items-center gap-1.5 font-mono text-[9px] text-muted-foreground">
-          <span className="size-1 rounded-full bg-emerald-400" />
+          <span className="size-1 rounded-full bg-server" />
           LIVE
         </span>
       </div>
